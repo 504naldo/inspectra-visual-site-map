@@ -6,14 +6,14 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Map as MapIcon, ListFilter, Activity, Play, Pause, ShieldCheck } from "lucide-react";
+import { Search, Map as MapIcon, ListFilter, Activity, Play, Pause, ShieldAlert, Crosshair } from "lucide-react";
 import { toast } from "sonner";
 import MapCanvas from "@/components/MapCanvas";
 import DeviceDetailPanel from "@/components/DeviceDetailPanel";
 
 // Helper to format time
 const formatTime = (date: Date) => {
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 };
 
 interface ActivityLog {
@@ -31,7 +31,7 @@ export default function Home() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [activities, setActivities] = useState<ActivityLog[]>([
-    { id: "init-1", time: formatTime(new Date()), message: "System initialized. Ready for inspection.", type: "info" }
+    { id: "init-1", time: formatTime(new Date()), message: "SYS_INIT // SECURE_BOOT_COMPLETED. READY FOR TELEMETRY.", type: "info" }
   ]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [animatingDeviceId, setAnimatingDeviceId] = useState<string | null>(null);
@@ -90,7 +90,7 @@ export default function Home() {
   // Handlers
   const addActivity = (message: string, type: ActivityLog["type"] = "info") => {
     setActivities(prev => [
-      { id: Math.random().toString(36).substring(7), time: formatTime(new Date()), message, type },
+      { id: Math.random().toString(36).substring(7), time: formatTime(new Date()), message: message.toUpperCase(), type },
       ...prev
     ].slice(0, 50)); // Keep last 50
   };
@@ -119,39 +119,39 @@ export default function Home() {
 
     // Logging & Toasting based on status
     const statusLabel = newStatus.replace("_", " ").toUpperCase();
-    const logMsg = `${device.type} ${device.label} on ${device.floor} — ${statusLabel}${note ? ` (${note})` : ""}`;
+    const logMsg = `EVENT // ${device.type.toUpperCase()} [${device.label}] // STATUS: ${statusLabel}${note ? ` // DETAIL: ${note}` : ""}`;
     
     if (newStatus === "passed") {
       addActivity(logMsg, "success");
-      toast.success(`Device Tested: ${device.label} — PASS`, {
-        description: `${device.type} at ${device.location}`,
+      toast.success(`TEST PASSED: ${device.label}`, {
+        description: `${device.type.toUpperCase()} // PASS`,
       });
     } else if (newStatus === "failed") {
       addActivity(logMsg, "error");
-      toast.error(`Device Tested: ${device.label} — FAIL`, {
-        description: `Deficiency logged: ${note || "No details provided"}`,
+      toast.error(`TEST FAILED: ${device.label}`, {
+        description: `CRITICAL DEFICIENCY: ${note || "NO DETAILS PROVIDED"}`,
       });
     } else if (newStatus === "deficiency") {
       addActivity(logMsg, "warning");
-      toast.warning(`Device Tested: ${device.label} — DEFICIENCY`, {
-        description: note || "Needs review",
+      toast.warning(`DEFICIENCY: ${device.label}`, {
+        description: `WARNING // ${note || "NEEDS REVIEW"}`,
       });
     } else if (newStatus === "no_access") {
       addActivity(logMsg, "info");
-      toast.info(`Device Tested: ${device.label} — NO ACCESS`, {
-        description: "Area was inaccessible during inspection.",
+      toast.info(`NO ACCESS: ${device.label}`, {
+        description: "SIGNAL UNREACHABLE // ACCESS DENIED",
       });
     } else {
-      addActivity(`${device.type} ${device.label} reset to Not Tested`, "info");
+      addActivity(`RESET // ${device.type.toUpperCase()} [${device.label}] TO PENDING`, "info");
     }
   };
 
   // Run Test Simulation
   const startSimulation = () => {
     setIsSimulating(true);
-    addActivity("Started automated test simulation", "info");
-    toast.info("Test simulation started", {
-      description: "Testing devices one by one..."
+    addActivity("SYS_SIM // INITIATING AUTOMATED TELEMETRY SWEEP", "info");
+    toast.info("SIMULATION RUNNING", {
+      description: "PINGING UNTESTED HARDWARE NODES..."
     });
 
     simulationIntervalRef.current = setInterval(() => {
@@ -163,9 +163,9 @@ export default function Home() {
         // All tested! Stop simulation
         clearInterval(simulationIntervalRef.current!);
         setIsSimulating(false);
-        addActivity("Simulation complete. All devices tested on this floor.", "success");
-        toast.success("Simulation Complete", {
-          description: "All devices on this floor have been inspected."
+        addActivity("SYS_SIM // SWEEP COMPLETE. ALL HARDWARE NODES RESPONDED.", "success");
+        toast.success("SIMULATION COMPLETE", {
+          description: "ALL NODES INSPECTED ON THIS VECTOR."
         });
         return;
       }
@@ -187,10 +187,10 @@ export default function Home() {
           finalStatus = "passed";
         } else if (rand < 0.88) {
           finalStatus = "failed";
-          note = "Battery depleted / signal delay";
+          note = "VOLTAGE_DROP / SIGNAL_DELAY";
         } else if (rand < 0.94) {
           finalStatus = "deficiency";
-          note = "Physical damage / label faded";
+          note = "HOUSING_CORROSION / LABEL_UNREADABLE";
         } else {
           finalStatus = "no_access";
         }
@@ -206,8 +206,8 @@ export default function Home() {
       clearInterval(simulationIntervalRef.current);
     }
     setIsSimulating(false);
-    addActivity("Stopped automated test simulation", "info");
-    toast.info("Test simulation stopped");
+    addActivity("SYS_SIM // SIMULATION SWEEP INTERRUPTED BY OPERATOR", "info");
+    toast.info("SIMULATION ABORTED");
   };
 
   const toggleSimulation = () => {
@@ -230,69 +230,71 @@ export default function Home() {
 
     const device = devices.find(d => d.id === id);
     if (device) {
-      addActivity(`Selected device: ${device.label} (${device.type})`, "info");
+      addActivity(`OPERATOR_SELECT // NODE [${device.label}] ACTIVE`, "info");
     }
   };
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-slate-50/50">
+    <div className="flex flex-col h-screen overflow-hidden bg-[#040711] text-cyan-400 font-mono">
       {/* Header */}
-      <header className="glass-panel sticky top-0 z-50 flex-none px-6 py-4 flex items-center justify-between">
+      <header className="glass-panel sticky top-0 z-50 flex-none px-6 py-4 flex items-center justify-between border-b border-cyan-500/20 hud-corners">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2.5 text-primary">
-            <ShieldCheck className="w-6 h-6 text-emerald-500" />
-            <h1 className="text-xl font-bold font-display tracking-tight">Inspectra <span className="font-normal text-muted-foreground">Visual Site Map</span></h1>
+          <div className="flex items-center gap-2.5 text-cyan-400">
+            <ShieldAlert className="w-6 h-6 text-cyan-400 animate-glow" />
+            <h1 className="text-lg font-extrabold font-display tracking-widest">
+              INSPECTRA <span className="font-normal text-slate-500">// HUD_SITE_MAP</span>
+            </h1>
           </div>
-          <Separator orientation="vertical" className="h-6" />
-          <div className="text-sm font-semibold text-slate-700">Harbour View Apartments</div>
+          <Separator orientation="vertical" className="h-6 bg-cyan-500/20" />
+          <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">LOC: HARBOUR_VIEW_APT</div>
         </div>
 
         <div className="flex items-center gap-6">
           {/* Progress Summary */}
-          <div className="hidden lg:flex items-center gap-4 text-sm">
+          <div className="hidden xl:flex items-center gap-4 text-xs">
             <div className="flex flex-col items-end">
-              <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">Progress</span>
-              <span className="font-bold text-slate-700">{stats.tested} / {stats.total} Tested</span>
+              <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">SYS_TELEMETRY</span>
+              <span className="font-bold text-cyan-400">{stats.tested} / {stats.total} NODES</span>
             </div>
-            <div className="flex gap-2">
-              <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                {stats.passed} Pass
+            <div className="flex gap-1.5">
+              <Badge variant="outline" className="bg-emerald-950/30 text-emerald-400 border-emerald-500/30 rounded-none text-[10px] font-bold">
+                {stats.passed} PASS
               </Badge>
-              <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200">
-                {stats.failed} Fail
+              <Badge variant="outline" className="bg-rose-950/30 text-rose-400 border-rose-500/30 rounded-none text-[10px] font-bold animate-pulse">
+                {stats.failed} FAIL
               </Badge>
               {stats.deficiency > 0 && (
-                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                  {stats.deficiency} Defect
+                <Badge variant="outline" className="bg-amber-950/30 text-amber-400 border-amber-500/30 rounded-none text-[10px] font-bold">
+                  {stats.deficiency} WARN
                 </Badge>
               )}
               {stats.noAccess > 0 && (
-                <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                  {stats.noAccess} No Access
+                <Badge variant="outline" className="bg-purple-950/30 text-purple-400 border-purple-500/30 rounded-none text-[10px] font-bold">
+                  {stats.noAccess} NO_ACC
                 </Badge>
               )}
-              <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-200">
-                {stats.notTested} Pending
+              <Badge variant="outline" className="bg-slate-900/40 text-slate-400 border-slate-700/40 rounded-none text-[10px] font-bold">
+                {stats.notTested} PEND
               </Badge>
             </div>
           </div>
 
-          <Separator orientation="vertical" className="h-6 hidden lg:block" />
+          <Separator orientation="vertical" className="h-6 hidden xl:block bg-cyan-500/20" />
 
           {/* Floor Selector */}
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider hidden sm:inline">Floor:</span>
+            <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest hidden sm:inline">VECTOR:</span>
             <Select value={selectedFloor} onValueChange={(val) => {
               setSelectedFloor(val);
               setSelectedDeviceId(null); // Clear selection when floor changes
-              addActivity(`Switched view to ${val}`, "info");
+              addActivity(`VEC_SHIFT // SWITCHED VECTOR TO ${val}`, "info");
             }}>
-              <SelectTrigger className="w-[160px] bg-white font-medium text-slate-700 shadow-sm">
-                <SelectValue placeholder="Select floor" />
+              <SelectTrigger className="w-[160px] bg-slate-950 border-cyan-500/20 text-cyan-400 font-bold rounded-none shadow-sm text-xs focus:ring-cyan-500/50">
+                <SelectValue placeholder="Select vector" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-slate-950 border-cyan-500/30 text-cyan-400 font-mono rounded-none">
                 {FLOORS.map(floor => (
-                  <SelectItem key={floor} value={floor}>{floor}</SelectItem>
+                  <SelectItem key={floor} value={floor} className="hover:bg-cyan-500/10 focus:bg-cyan-500/10 focus:text-cyan-300">{floor.toUpperCase()}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -300,13 +302,15 @@ export default function Home() {
 
           <Button 
             variant={isSimulating ? "destructive" : "default"} 
-            className={`gap-2 shadow-sm transition-all duration-300 font-medium ${
-              isSimulating ? "bg-rose-500 hover:bg-rose-600" : "bg-slate-900 hover:bg-slate-800"
+            className={`gap-2 rounded-none transition-all duration-300 font-bold text-xs tracking-wider border ${
+              isSimulating 
+                ? "bg-rose-950 text-rose-400 border-rose-500 hover:bg-rose-900" 
+                : "bg-cyan-950 text-cyan-400 border-cyan-500 hover:bg-cyan-900 shadow-[0_0_10px_rgba(6,182,212,0.2)] hover:shadow-[0_0_15px_rgba(6,182,212,0.4)]"
             }`}
             onClick={toggleSimulation}
           >
-            {isSimulating ? <Pause className="w-4 h-4 animate-spin-slow" /> : <Play className="w-4 h-4" />}
-            {isSimulating ? "Stop Simulation" : "Run Simulation"}
+            {isSimulating ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+            {isSimulating ? "HALT_SWEEP" : "RUN_SWEEP"}
           </Button>
         </div>
       </header>
@@ -315,62 +319,62 @@ export default function Home() {
       <div className="flex flex-1 overflow-hidden">
         
         {/* Left Sidebar - Device List & Filters */}
-        <aside className="w-80 flex-none border-r border-slate-200 bg-white/60 backdrop-blur-xl flex flex-col z-10 shadow-[4px_0_24px_rgba(0,0,0,0.01)]">
-          <div className="p-4 flex flex-col gap-3">
+        <aside className="w-80 flex-none border-r border-cyan-500/20 bg-slate-950/80 backdrop-blur-xl flex flex-col z-10 shadow-[10px_0_30px_rgba(0,0,0,0.3)] hud-corners">
+          <div className="p-4 flex flex-col gap-3 bg-slate-950/40">
             <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-3 top-3 h-3.5 w-3.5 text-cyan-500/60" />
               <Input 
-                placeholder="Search devices or types..." 
-                className="pl-9 bg-white shadow-sm border-slate-200/80 text-sm h-10"
+                placeholder="SEARCH_NODES..." 
+                className="pl-9 bg-slate-950 border-cyan-500/20 text-cyan-400 placeholder:text-slate-700 text-xs h-9 rounded-none focus-visible:ring-cyan-500/50 uppercase"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
             
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full bg-white shadow-sm border-slate-200/80 text-slate-600 text-xs h-9">
+              <SelectTrigger className="w-full bg-slate-950 border-cyan-500/20 text-cyan-500/70 text-[10px] font-bold h-8 rounded-none focus:ring-cyan-500/50">
                 <div className="flex items-center gap-2">
-                  <ListFilter className="w-3.5 h-3.5 text-slate-400" />
-                  <SelectValue placeholder="Filter by status" />
+                  <ListFilter className="w-3 h-3 text-cyan-500/60" />
+                  <SelectValue placeholder="FILTER_STATUS" />
                 </div>
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="not_tested">Not Tested</SelectItem>
-                <SelectItem value="passed">Passed</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
-                <SelectItem value="deficiency">Deficiency</SelectItem>
-                <SelectItem value="no_access">No Access</SelectItem>
+              <SelectContent className="bg-slate-950 border-cyan-500/30 text-cyan-400 font-mono rounded-none">
+                <SelectItem value="all" className="hover:bg-cyan-500/10 focus:bg-cyan-500/10">ALL STATUSES</SelectItem>
+                <SelectItem value="not_tested" className="hover:bg-cyan-500/10 focus:bg-cyan-500/10">PENDING</SelectItem>
+                <SelectItem value="passed" className="hover:bg-cyan-500/10 focus:bg-cyan-500/10">PASSED</SelectItem>
+                <SelectItem value="failed" className="hover:bg-cyan-500/10 focus:bg-cyan-500/10">FAILED</SelectItem>
+                <SelectItem value="deficiency" className="hover:bg-cyan-500/10 focus:bg-cyan-500/10">DEFICIENCY</SelectItem>
+                <SelectItem value="no_access" className="hover:bg-cyan-500/10 focus:bg-cyan-500/10">NO ACCESS</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <Separator className="bg-slate-100" />
+          <Separator className="bg-cyan-500/10" />
 
-          <ScrollArea className="flex-1 bg-slate-50/30">
+          <ScrollArea className="flex-1 bg-[#020409]/40">
             <div className="p-3 flex flex-col gap-2">
               {filteredDevices.length === 0 ? (
-                <div className="text-center py-12 text-sm text-slate-400 flex flex-col items-center gap-2">
-                  <MapIcon className="w-8 h-8 opacity-30" />
-                  <span>No devices found matching filters.</span>
+                <div className="text-center py-12 text-xs text-slate-600 flex flex-col items-center gap-2 font-mono">
+                  <MapIcon className="w-6 h-6 opacity-20" />
+                  <span>NO_NODES_FOUND_MATCHING_FILTER</span>
                 </div>
               ) : (
                 filteredDevices.map(device => (
                   <button
                     key={device.id}
                     onClick={() => handleSelectDevice(device.id)}
-                    className={`flex flex-col items-start p-3 rounded-xl border text-left transition-all duration-200 ${
+                    className={`flex flex-col items-start p-3 rounded-none border text-left transition-all duration-200 font-mono ${
                       selectedDeviceId === device.id 
-                        ? "bg-white border-slate-300 shadow-md ring-1 ring-slate-200 scale-[1.01]" 
-                        : "bg-white border-slate-100 shadow-sm hover:border-slate-300 hover:shadow-sm"
+                        ? "bg-cyan-950/40 border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.15)] ring-1 ring-cyan-500/30" 
+                        : "bg-slate-950/40 border-cyan-500/5 hover:border-cyan-500/20 hover:bg-slate-900/30"
                     }`}
                   >
                     <div className="flex items-center justify-between w-full mb-1">
-                      <span className="font-semibold text-xs text-slate-800">{device.label}</span>
+                      <span className="font-bold text-[11px] text-cyan-400">{device.label}</span>
                       <StatusIndicator status={device.status} />
                     </div>
-                    <span className="text-[10px] font-medium text-slate-400">{device.type}</span>
-                    <span className="text-[10px] text-slate-500 mt-1 truncate w-full">{device.location}</span>
+                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">{device.type}</span>
+                    <span className="text-[9px] text-slate-400 mt-1 truncate w-full uppercase">{device.location}</span>
                   </button>
                 ))
               )}
@@ -379,7 +383,7 @@ export default function Home() {
         </aside>
 
         {/* Center - Map Area */}
-        <main className="flex-1 relative bg-slate-100/40 overflow-hidden flex flex-col">
+        <main className="flex-1 relative bg-[#020408] overflow-hidden flex flex-col">
           <div className="flex-1 relative z-10 p-6 md:p-12 flex items-center justify-center">
             <MapCanvas 
               floor={selectedFloor}
@@ -392,22 +396,22 @@ export default function Home() {
 
           {/* Bottom Activity Feed Overlay */}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-20">
-            <div className="glass-panel rounded-2xl p-4 flex flex-col gap-2.5 shadow-[0_12px_40px_rgba(0,0,0,0.06)] border border-white/60">
-              <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                <Activity className="w-3.5 h-3.5 text-slate-400" /> Activity Log Feed
+            <div className="glass-panel rounded-none p-4 flex flex-col gap-2.5 shadow-[0_15px_40px_rgba(0,0,0,0.6)] border border-cyan-500/20 bg-slate-950/90 backdrop-blur-md hud-corners">
+              <div className="flex items-center gap-2 text-[9px] font-bold text-cyan-500/60 uppercase tracking-widest">
+                <Activity className="w-3.5 h-3.5 text-cyan-500/60 animate-pulse" /> TELEMETRY_FEED_LOGS
               </div>
               <ScrollArea className="h-[80px]">
-                <div className="flex flex-col gap-1.5 pr-2">
+                <div className="flex flex-col gap-1 pr-2 font-mono">
                   {activities.map(activity => (
-                    <div key={activity.id} className="flex items-start gap-2.5 text-xs animate-in fade-in slide-in-from-bottom-2 duration-300">
-                      <span className="text-[10px] text-slate-400 font-mono w-16 flex-none mt-0.5">{activity.time}</span>
-                      <span className={`font-medium
-                        ${activity.type === 'success' ? 'text-emerald-600' : ''}
-                        ${activity.type === 'error' ? 'text-rose-600 animate-pulse' : ''}
-                        ${activity.type === 'warning' ? 'text-amber-600' : ''}
-                        ${activity.type === 'info' ? 'text-slate-600' : ''}
+                    <div key={activity.id} className="flex items-start gap-2.5 text-[10px] animate-in fade-in slide-in-from-bottom-2 duration-300">
+                      <span className="text-[9px] text-slate-600 font-mono w-16 flex-none mt-0.5">[{activity.time}]</span>
+                      <span className={`font-bold tracking-wide
+                        ${activity.type === 'success' ? 'text-emerald-400' : ''}
+                        ${activity.type === 'error' ? 'text-rose-400 animate-pulse' : ''}
+                        ${activity.type === 'warning' ? 'text-amber-400' : ''}
+                        ${activity.type === 'info' ? 'text-cyan-400/80' : ''}
                       `}>
-                        {activity.message}
+                        &gt; {activity.message}
                       </span>
                     </div>
                   ))}
@@ -433,20 +437,20 @@ export default function Home() {
 // Helper component for status dots
 function StatusIndicator({ status }: { status: DeviceStatus }) {
   const config = {
-    not_tested: { color: "bg-slate-300", label: "Pending" },
-    testing: { color: "bg-blue-500 animate-pulse", label: "Testing" },
-    passed: { color: "bg-emerald-500", label: "Pass" },
-    failed: { color: "bg-rose-500 animate-pulse", label: "Fail" },
-    deficiency: { color: "bg-amber-500", label: "Deficiency" },
-    no_access: { color: "bg-purple-500", label: "No Access" },
+    not_tested: { color: "bg-slate-600", label: "PENDING" },
+    testing: { color: "bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(6,182,212,0.8)]", label: "TESTING" },
+    passed: { color: "bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.8)]", label: "PASS" },
+    failed: { color: "bg-rose-500 animate-pulse shadow-[0_0_10px_rgba(244,63,94,0.8)]", label: "FAIL" },
+    deficiency: { color: "bg-amber-400 shadow-[0_0_8px_rgba(234,179,8,0.8)]", label: "WARN" },
+    no_access: { color: "bg-purple-500 shadow-[0_0_8px_rgba(139,92,246,0.8)]", label: "NO_ACC" },
   };
 
   const { color, label } = config[status];
 
   return (
     <div className="flex items-center gap-1.5" title={label}>
-      <div className={`w-2 h-2 rounded-full ${color} shadow-sm`} />
-      <span className="text-[10px] text-slate-400 font-medium hidden md:inline capitalize">{status.replace("_", " ")}</span>
+      <div className={`w-2 h-2 rounded-none ${color}`} />
+      <span className="text-[9px] text-slate-500 font-bold hidden md:inline capitalize">{label}</span>
     </div>
   );
 }

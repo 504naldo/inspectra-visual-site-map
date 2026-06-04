@@ -36,7 +36,7 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  /* Device Status Colors - Nordic Minimalist Palette */
+  /* Cyberpunk Device Status Colors */
   --color-status-not-tested: var(--status-not-tested);
   --color-status-testing: var(--status-testing);
   --color-status-passed: var(--status-passed);
@@ -44,49 +44,49 @@
   --color-status-deficiency: var(--status-deficiency);
   --color-status-no-access: var(--status-no-access);
 
-  --font-sans: "Inter", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  --font-display: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "JetBrains Mono", "Courier New", Courier, monospace;
+  --font-display: "Orbitron", "Plus Jakarta Sans", sans-serif;
 }
 
 :root {
-  /* Nordic Minimalist Light Theme */
-  --background: oklch(0.99 0.005 286); /* Soft Chalk White #f8fafc */
-  --foreground: oklch(0.2 0.02 260); /* Deep Slate */
+  /* Industrial Cyberpunk / Tactical HUD Theme */
+  --background: oklch(0.12 0.02 260); /* Ultra-dark Obsidian Blue #060913 */
+  --foreground: oklch(0.85 0.08 190); /* Luminous Cyan-Gray */
   
-  --card: oklch(1 0 0); /* Pure White */
-  --card-foreground: oklch(0.2 0.02 260);
+  --card: oklch(0.16 0.03 260); /* Dark Slate Panel */
+  --card-foreground: oklch(0.85 0.08 190);
   
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2 0.02 260);
+  --popover: oklch(0.14 0.03 260);
+  --popover-foreground: oklch(0.85 0.08 190);
   
-  --primary: oklch(0.2 0.02 260); /* Deep Slate */
-  --primary-foreground: oklch(1 0 0);
+  --primary: oklch(0.7 0.18 190); /* Glowing Electric Cyan */
+  --primary-foreground: oklch(0.12 0.02 260);
   
-  --secondary: oklch(0.96 0.01 286); /* Light Slate */
-  --secondary-foreground: oklch(0.3 0.02 260);
+  --secondary: oklch(0.2 0.04 260); /* Medium Slate */
+  --secondary-foreground: oklch(0.8 0.1 190);
   
-  --muted: oklch(0.96 0.01 286);
-  --muted-foreground: oklch(0.5 0.02 260);
+  --muted: oklch(0.18 0.03 260);
+  --muted-foreground: oklch(0.55 0.06 190);
   
-  --accent: oklch(0.96 0.01 286);
-  --accent-foreground: oklch(0.2 0.02 260);
+  --accent: oklch(0.22 0.05 260);
+  --accent-foreground: oklch(0.85 0.12 190);
   
-  --destructive: oklch(0.6 0.2 25); /* Coral Red */
+  --destructive: oklch(0.6 0.22 25); /* High-intensity Crimson Red */
   --destructive-foreground: oklch(1 0 0);
   
-  --border: oklch(0.9 0.01 286);
-  --input: oklch(0.9 0.01 286);
-  --ring: oklch(0.8 0.02 260);
+  --border: oklch(0.24 0.05 260);
+  --input: oklch(0.2 0.04 260);
+  --ring: oklch(0.7 0.18 190);
   
-  --radius: 0.75rem; /* Softer radius for Nordic feel */
+  --radius: 0.25rem; /* Sharp, technical corners for Cyberpunk HUD */
 
-  /* Status Colors */
-  --status-not-tested: oklch(0.7 0.02 260); /* Soft Slate #94a3b8 */
-  --status-testing: oklch(0.6 0.15 260); /* Sky Blue #3b82f6 */
-  --status-passed: oklch(0.7 0.15 160); /* Sage Green #10b981 */
-  --status-failed: oklch(0.6 0.2 25); /* Coral Red #f43f5e */
-  --status-deficiency: oklch(0.8 0.15 85); /* Warm Ochre #eab308 */
-  --status-no-access: oklch(0.6 0.15 300); /* Soft Lavender #8b5cf6 */
+  /* Status Colors (Glowing, high-contrast neon variants) */
+  --status-not-tested: oklch(0.5 0.02 260); /* Steel Muted Gray */
+  --status-testing: oklch(0.7 0.18 190); /* Electric Cyan */
+  --status-passed: oklch(0.75 0.22 145); /* Emerald Safety Green */
+  --status-failed: oklch(0.6 0.22 25); /* High-Alert Crimson Red */
+  --status-deficiency: oklch(0.75 0.18 80); /* Warning Neon Amber */
+  --status-no-access: oklch(0.65 0.2 300); /* Cyber Purple */
 }
 
 @layer base {
@@ -94,10 +94,15 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground font-sans antialiased;
+    background-image: 
+      radial-gradient(circle at 50% 50%, oklch(0.16 0.03 260 / 40%) 0%, transparent 80%),
+      linear-gradient(to right, oklch(1 0 0 / 2%) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(1 0 0 / 2%) 1px, transparent 1px);
+    background-size: 100% 100%, 20px 20px, 20px 20px;
   }
   h1, h2, h3, h4, h5, h6 {
-    @apply font-display tracking-tight;
+    @apply font-display tracking-wider uppercase;
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
@@ -113,12 +118,37 @@
 }
 
 @layer components {
+  /* Tactical HUD glass panel */
   .glass-panel {
-    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)];
+    @apply bg-slate-950/80 backdrop-blur-md border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.05)];
   }
   
   .glass-card {
-    @apply bg-white/60 backdrop-blur-sm border border-white/40 shadow-[0_4px_20px_rgb(0,0,0,0.02)];
+    @apply bg-slate-900/60 backdrop-blur-sm border border-cyan-500/10 shadow-[0_0_15px_rgba(6,182,212,0.02)];
+  }
+
+  /* Corner brackets for Cyberpunk UI blocks */
+  .hud-corners {
+    position: relative;
+  }
+  .hud-corners::before, .hud-corners::after {
+    content: "";
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-color: oklch(0.7 0.18 190 / 40%);
+    border-style: solid;
+    pointer-events: none;
+  }
+  .hud-corners::before {
+    top: -1px;
+    left: -1px;
+    border-width: 1px 0 0 1px;
+  }
+  .hud-corners::after {
+    bottom: -1px;
+    right: -1px;
+    border-width: 0 1px 1px 0;
   }
 
   .container {
@@ -148,4 +178,34 @@
       max-width: 1280px;
     }
   }
+}
+
+/* Animations for Cyberpunk alerts */
+@keyframes breathing-glow {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px var(--color-primary)); }
+  50% { transform: scale(1.08); filter: drop-shadow(0 0 12px var(--color-primary)); }
+}
+
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+.animate-glow {
+  animation: breathing-glow 2s infinite ease-in-out;
+}
+
+.scanline-overlay {
+  position: relative;
+  overflow: hidden;
+}
+.scanline-overlay::after {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  z-index: 2;
+  background-size: 100% 2px, 3px 100%;
+  pointer-events: none;
 }
