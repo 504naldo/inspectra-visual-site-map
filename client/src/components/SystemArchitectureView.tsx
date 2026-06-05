@@ -481,8 +481,9 @@ def_supv_01_uuid,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,bld_hva_uuid,dev_supv_01_u
   };
 
   const generateSchemaText = (format: "prisma" | "knex" | "sql") => {
+    // Dynamically generate schemas from live ERD tables and relations state
     if (format === "prisma") {
-      return `datasource db {
+      let schema = `datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
@@ -490,517 +491,155 @@ def_supv_01_uuid,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,bld_hva_uuid,dev_supv_01_u
 generator client {
   provider = "prisma-client-js"
 }
+`;
 
-model Company {
-  id            String      @id @default(uuid()) @db.Uuid
-  name          String      @db.VarChar(255)
-  logoUrl       String?     @map("logo_url") @db.VarChar(255)
-  address       String?     @db.Text
-  phone         String?     @db.VarChar(50)
-  email         String?     @db.VarChar(255)
-  serviceAreas  Json?       @map("service_areas")
-  branding      Json?
-  quoteTerms    String?     @map("quote_terms") @db.Text
-  reportFooter  String?     @map("report_footer") @db.Text
-  createdAt     DateTime    @default(now()) @map("created_at")
-  users         User[]
-  customers     Customer[]
-  devices       Device[]
-  deficiencies  Deficiency[]
-  reports       Report[]
-  quotes        Quote[]
+      erdTables.forEach(t => {
+        schema += `\nmodel ${t.name.charAt(0) + t.name.slice(1).toLowerCase()} {`;
+        t.fields.forEach(f => {
+          const parts = f.split(" (");
+          const name = parts[0].trim();
+          const rest = parts[1] ? parts[1].replace(")", "") : "";
+          const typeLower = rest.toLowerCase();
 
-  @@map("companies")
-}
+          let prismaType = "String";
+          let decorators = "";
 
-model User {
-  id             String       @id @default(uuid()) @db.Uuid
-  companyId      String       @map("company_id") @db.Uuid
-  name           String       @db.VarChar(255)
-  email          String       @unique @db.VarChar(255)
-  passwordHash   String       @map("password_hash") @db.VarChar(255)
-  roleId         String       @map("role_id") @db.Uuid
-  asttbcNumber   String?      @map("asttbc_number") @db.VarChar(50)
-  status         String       @default("active") @db.VarChar(50)
-  createdAt      DateTime     @default(now()) @map("created_at")
-  company        Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  role           Role         @relation(fields: [roleId], references: [id])
-  deficiencies   Deficiency[] @relation("DeficiencyCreator")
-  reports        Report[]     @relation("ReportCreator")
-  testedDevices  Device[]     @relation("DeviceTester")
+          if (typeLower.includes("pk")) {
+            decorators += " @id @default(uuid()) @db.Uuid";
+          } else if (typeLower.includes("fk")) {
+            prismaType = "String";
+            decorators += " @db.Uuid";
+          } else if (typeLower.includes("varchar")) {
+            prismaType = "String";
+            decorators += " @db.VarChar(255)";
+          } else if (typeLower.includes("text")) {
+            prismaType = "String";
+            decorators += " @db.Text";
+          } else if (typeLower.includes("int")) {
+            prismaType = "Int";
+          } else if (typeLower.includes("decimal") || typeLower.includes("numeric")) {
+            prismaType = "Decimal";
+            decorators += " @db.Decimal(12, 2)";
+          } else if (typeLower.includes("boolean")) {
+            prismaType = "Boolean";
+            decorators += " @default(false)";
+          } else if (typeLower.includes("timestamp") || typeLower.includes("date")) {
+            prismaType = "DateTime";
+            decorators += " @default(now())";
+          }
 
-  @@map("users")
-}
+          // Format camelCase for Prisma properties
+          const camelName = name.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+          schema += `\n  ${camelName.padEnd(15)} ${prismaType}${decorators}`;
+        });
 
-model Role {
-  id          String   @id @default(uuid()) @db.Uuid
-  name        String   @db.VarChar(100)
-  permissions String[]
-  description String?  @db.Text
-  createdAt   DateTime @default(now()) @map("created_at")
-  users       User[]
+        // Add relation fields
+        const incoming = erdRelations.filter(r => r.to === t.id);
+        incoming.forEach(r => {
+          const fromModelName = r.from.charAt(0).toUpperCase() + r.from.slice(1).toLowerCase();
+          const fromModelSingular = r.from.slice(0, -1);
+          const camelFk = `${fromModelSingular}Id`.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+          schema += `\n  ${fromModelSingular.padEnd(15)} ${fromModelName} @relation(fields: [${camelFk}], references: [id])`;
+        });
 
-  @@map("roles")
-}
+        const outgoing = erdRelations.filter(r => r.from === t.id);
+        outgoing.forEach(r => {
+          const toModelName = r.to.charAt(0).toUpperCase() + r.to.slice(1).toLowerCase();
+          schema += `\n  ${r.to.padEnd(15)} ${toModelName}[]`;
+        });
 
-model Customer {
-  id             String       @id @default(uuid()) @db.Uuid
-  companyId      String       @map("company_id") @db.Uuid
-  name           String       @db.VarChar(255)
-  billingAddress String?      @map("billing_address") @db.Text
-  primaryContact String?      @map("primary_contact") @db.VarChar(255)
-  email          String?      @db.VarChar(255)
-  phone          String?      @db.VarChar(50)
-  portalStatus   String       @default("inactive") @map("portal_status") @db.VarChar(50)
-  createdAt      DateTime     @default(now()) @map("created_at")
-  company        Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  buildings      Building[]
-  devices        Device[]
-  reports        Report[]
-  quotes         Quote[]
+        schema += `\n\n  @@map("${t.id}")\n}\n`;
+      });
 
-  @@map("customers")
-}
-
-model Building {
-  id                 String       @id @default(uuid()) @db.Uuid
-  customerId         String       @map("customer_id") @db.Uuid
-  name               String       @db.VarChar(255)
-  address            String       @db.Text
-  occupancyType      String?      @map("occupancy_type") @db.VarChar(100)
-  numFloors          Int          @map("num_floors")
-  complianceStatus   String       @default("compliant") @map("compliance_status") @db.VarChar(50)
-  lastInspectionAt   DateTime?    @map("last_inspection_at")
-  nextInspectionDue  DateTime?    @map("next_inspection_due")
-  createdAt          DateTime     @default(now()) @map("created_at")
-  customer           Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  floors             Floor[]
-  devices            Device[]
-  deficiencies       Deficiency[]
-  reports            Report[]
-  quotes             Quote[]
-
-  @@map("buildings")
-}
-
-model Floor {
-  id           String   @id @default(uuid()) @db.Uuid
-  buildingId   String   @map("building_id") @db.Uuid
-  name         String   @db.VarChar(100)
-  sequence     Int
-  blueprintUrl String?  @map("blueprint_url") @db.VarChar(255)
-  createdAt    DateTime @default(now()) @map("created_at")
-  building     Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
-  devices      Device[]
-
-  @@map("floors")
-}
-
-model Device {
-  id             String       @id @default(uuid()) @db.Uuid
-  companyId      String       @map("company_id") @db.Uuid
-  customerId     String       @map("customer_id") @db.Uuid
-  buildingId     String       @map("building_id") @db.Uuid
-  floorId        String       @map("floor_id") @db.Uuid
-  deviceCode     String       @map("device_code") @db.VarChar(100)
-  location       String       @db.Text
-  mapX           Decimal      @map("map_x") @db.Decimal(5, 2)
-  mapY           Decimal      @map("map_y") @db.Decimal(5, 2)
-  status         String       @default("not_tested") @db.VarChar(50)
-  qrCode         String?      @map("qr_code") @db.VarChar(255)
-  nfcTag         String?      @map("nfc_tag") @db.VarChar(255)
-  lastTestedAt   DateTime?    @map("last_tested_at")
-  lastTestedBy   String?      @map("last_tested_by") @db.Uuid
-  createdAt      DateTime     @default(now()) @map("created_at")
-  company        Company      @relation(fields: [companyId], references: [id])
-  customer       Customer     @relation(fields: [customerId], references: [id])
-  building       Building     @relation(fields: [buildingId], references: [id])
-  floor          Floor        @relation(fields: [floorId], references: [id])
-  tester         User?        @relation("DeviceTester", fields: [lastTestedBy], references: [id])
-  deficiencies   Deficiency[]
-
-  @@map("devices")
-}
-
-model Deficiency {
-  id                  String    @id @default(uuid()) @db.Uuid
-  companyId           String    @map("company_id") @db.Uuid
-  buildingId          String    @map("building_id") @db.Uuid
-  deviceId            String    @map("device_id") @db.Uuid
-  priority            String    @db.VarChar(50)
-  technicalDesc       String    @map("technical_description") @db.Text
-  customerDesc        String    @map("customer_description") @db.Text
-  internalNote        String?   @map("internal_note") @db.Text
-  recommendedRepair   String?   @map("recommended_repair") @db.Text
-  status              String    @default("open") @db.VarChar(50)
-  addToReport         Boolean   @default(true) @map("add_to_report")
-  addToQuote          Boolean   @default(true) @map("add_to_quote")
-  shareWithGovernment Boolean   @default(false) @map("share_with_government")
-  createdBy           String    @map("created_by") @db.Uuid
-  createdAt           DateTime  @default(now()) @map("created_at")
-  closedAt            DateTime? @map("closed_at")
-  company             Company   @relation(fields: [companyId], references: [id])
-  building            Building  @relation(fields: [buildingId], references: [id])
-  device              Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  creator             User      @relation("DeficiencyCreator", fields: [createdBy], references: [id])
-
-  @@map("deficiencies")
-}
-
-model Report {
-  id           String    @id @default(uuid()) @db.Uuid
-  companyId    String    @map("company_id") @db.Uuid
-  customerId   String    @map("customer_id") @db.Uuid
-  buildingId   String    @map("building_id") @db.Uuid
-  reportNumber String    @map("report_number") @db.VarChar(100)
-  reportType   String    @map("report_type") @db.VarChar(100)
-  status       String    @default("draft") @db.VarChar(50)
-  pdfUrl       String?   @map("pdf_url") @db.VarChar(255)
-  sentAt       DateTime? @map("sent_at")
-  approvedAt   DateTime? @map("approved_at")
-  createdBy    String    @map("created_by") @db.Uuid
-  createdAt    DateTime  @default(now()) @map("created_at")
-  company      Company   @relation(fields: [companyId], references: [id])
-  customer     Customer  @relation(fields: [customerId], references: [id])
-  building     Building  @relation(fields: [buildingId], references: [id])
-  creator      User      @relation("ReportCreator", fields: [createdBy], references: [id])
-
-  @@map("reports")
-}
-
-model Quote {
-  id          String    @id @default(uuid()) @db.Uuid
-  companyId   String    @map("company_id") @db.Uuid
-  customerId  String    @map("customer_id") @db.Uuid
-  buildingId  String    @map("building_id") @db.Uuid
-  quoteNumber String    @map("quote_number") @db.VarChar(100)
-  status      String    @default("draft") @db.VarChar(50)
-  subtotal    Decimal   @db.Decimal(12, 2)
-  tax         Decimal   @db.Decimal(12, 2)
-  total       Decimal   @db.Decimal(12, 2)
-  expiryDate  DateTime? @map("expiry_date") @db.Date
-  approvedAt  DateTime? @map("approved_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  company     Company   @relation(fields: [companyId], references: [id])
-  customer    Customer  @relation(fields: [customerId], references: [id])
-  building    Building  @relation(fields: [buildingId], references: [id])
-
-  @@map("quotes")
-}`;
+      return schema;
     }
 
     if (format === "knex") {
-      return `exports.up = function(knex) {
-  return knex.schema
-    // 1. Companies Table
-    .createTable('companies', table => {
-      table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
-      table.string('name', 255).notNullable();
-      table.string('logo_url', 255);
-      table.text('address');
-      table.string('phone', 50);
-      table.string('email', 255);
-      table.jsonb('service_areas');
-      table.jsonb('branding');
-      table.text('quote_terms');
-      table.text('report_footer');
-      table.timestamp('created_at').defaultTo(knex.fn.now());
-    })
-    
-    // 2. Roles Table
-    .createTable('roles', table => {
-      table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
-      table.string('name', 100).notNullable();
-      table.specificType('permissions', 'text[]');
-      table.text('description');
-      table.timestamp('created_at').defaultTo(knex.fn.now());
-    })
+      let schema = `exports.up = function(knex) {
+  return knex.schema`;
 
-    // 3. Users Table
-    .createTable('users', table => {
-      table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
-      table.uuid('company_id').references('id').inTable('companies').onDelete('CASCADE');
-      table.string('name', 255).notNullable();
-      table.string('email', 255).notNullable().unique();
-      table.string('password_hash', 255).notNullable();
-      table.uuid('role_id').references('id').inTable('roles');
-      table.string('asttbc_number', 50);
-      table.string('status', 50).defaultTo('active');
-      table.timestamp('created_at').defaultTo(knex.fn.now());
-    })
+      erdTables.forEach(t => {
+        schema += `\n    .createTable('${t.id}', table => {`;
+        t.fields.forEach(f => {
+          const parts = f.split(" (");
+          const name = parts[0].trim();
+          const rest = parts[1] ? parts[1].replace(")", "") : "";
+          const typeLower = rest.toLowerCase();
 
-    // 4. Customers Table
-    .createTable('customers', table => {
-      table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
-      table.uuid('company_id').references('id').inTable('companies').onDelete('CASCADE');
-      table.string('name', 255).notNullable();
-      table.text('billing_address');
-      table.string('primary_contact', 255);
-      table.string('email', 255);
-      table.string('phone', 50);
-      table.string('portal_status', 50).defaultTo('inactive');
-      table.timestamp('created_at').defaultTo(knex.fn.now());
-    })
+          if (typeLower.includes("pk")) {
+            schema += `\n      table.uuid('${name}').primary().defaultTo(knex.raw('gen_random_uuid()'));`;
+          } else if (typeLower.includes("fk")) {
+            // Find foreign table
+            const refTable = erdRelations.find(r => r.to === t.id && name.startsWith(r.from.slice(0, -1)))?.from || "companies";
+            schema += `\n      table.uuid('${name}').references('id').inTable('${refTable}').onDelete('CASCADE');`;
+          } else if (typeLower.includes("varchar")) {
+            schema += `\n      table.string('${name}', 255);`;
+          } else if (typeLower.includes("text")) {
+            schema += `\n      table.text('${name}');`;
+          } else if (typeLower.includes("int")) {
+            schema += `\n      table.integer('${name}');`;
+          } else if (typeLower.includes("decimal") || typeLower.includes("numeric")) {
+            schema += `\n      table.decimal('${name}', 12, 2);`;
+          } else if (typeLower.includes("boolean")) {
+            schema += `\n      table.boolean('${name}').defaultTo(false);`;
+          } else if (typeLower.includes("timestamp") || typeLower.includes("date")) {
+            schema += `\n      table.timestamp('${name}').defaultTo(knex.fn.now());`;
+          }
+        });
+        schema += `\n    })`;
+      });
 
-    // 5. Buildings Table
-    .createTable('buildings', table => {
-      table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
-      table.uuid('customer_id').references('id').inTable('customers').onDelete('CASCADE');
-      table.string('name', 255).notNullable();
-      table.text('address').notNullable();
-      table.string('occupancy_type', 100);
-      table.integer('num_floors').notNullable();
-      table.string('compliance_status', 50).defaultTo('compliant');
-      table.timestamp('last_inspection_at');
-      table.timestamp('next_inspection_due');
-      table.timestamp('created_at').defaultTo(knex.fn.now());
-    })
+      schema += `;\n};\n\nexports.down = function(knex) {\n  return knex.schema`;
+      [...erdTables].reverse().forEach(t => {
+        schema += `\n    .dropTableIfExists('${t.id}')`;
+      });
+      schema += `;\n};`;
 
-    // 6. Floors Table
-    .createTable('floors', table => {
-      table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
-      table.uuid('building_id').references('id').inTable('buildings').onDelete('CASCADE');
-      table.string('name', 100).notNullable();
-      table.integer('sequence').notNullable();
-      table.string('blueprint_url', 255);
-      table.timestamp('created_at').defaultTo(knex.fn.now());
-    })
-
-    // 7. Devices Table
-    .createTable('devices', table => {
-      table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
-      table.uuid('company_id').references('id').inTable('companies');
-      table.uuid('customer_id').references('id').inTable('customers');
-      table.uuid('building_id').references('id').inTable('buildings');
-      table.uuid('floor_id').references('id').inTable('floors');
-      table.string('device_code', 100).notNullable();
-      table.text('location').notNullable();
-      table.decimal('map_x', 5, 2).notNullable();
-      table.decimal('map_y', 5, 2).notNullable();
-      table.string('status', 50).defaultTo('not_tested');
-      table.string('qr_code', 255);
-      table.string('nfc_tag', 255);
-      table.timestamp('last_tested_at');
-      table.uuid('last_tested_by').references('id').inTable('users');
-      table.timestamp('created_at').defaultTo(knex.fn.now());
-    })
-
-    // 8. Deficiencies Table
-    .createTable('deficiencies', table => {
-      table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
-      table.uuid('company_id').references('id').inTable('companies');
-      table.uuid('building_id').references('id').inTable('buildings');
-      table.uuid('device_id').references('id').inTable('devices').onDelete('CASCADE');
-      table.string('priority', 50).notNullable();
-      table.text('technical_description').notNullable();
-      table.text('customer_description').notNullable();
-      table.text('internal_note');
-      table.text('recommended_repair');
-      table.string('status', 50).defaultTo('open');
-      table.boolean('add_to_report').defaultTo(true);
-      table.boolean('add_to_quote').defaultTo(true);
-      table.boolean('share_with_government').defaultTo(false);
-      table.uuid('created_by').references('id').inTable('users');
-      table.timestamp('created_at').defaultTo(knex.fn.now());
-      table.timestamp('closed_at');
-    })
-
-    // 9. Reports Table
-    .createTable('reports', table => {
-      table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
-      table.uuid('company_id').references('id').inTable('companies');
-      table.uuid('customer_id').references('id').inTable('customers');
-      table.uuid('building_id').references('id').inTable('buildings');
-      table.string('report_number', 100).notNullable();
-      table.string('report_type', 100).notNullable();
-      table.string('status', 50).defaultTo('draft');
-      table.string('pdf_url', 255);
-      table.timestamp('sent_at');
-      table.timestamp('approved_at');
-      table.uuid('created_by').references('id').inTable('users');
-      table.timestamp('created_at').defaultTo(knex.fn.now());
-    })
-
-    // 10. Quotes Table
-    .createTable('quotes', table => {
-      table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
-      table.uuid('company_id').references('id').inTable('companies');
-      table.uuid('customer_id').references('id').inTable('customers');
-      table.uuid('building_id').references('id').inTable('buildings');
-      table.string('quote_number', 100).notNullable();
-      table.string('status', 50).defaultTo('draft');
-      table.decimal('subtotal', 12, 2).notNullable();
-      table.decimal('tax', 12, 2).notNullable();
-      table.decimal('total', 12, 2).notNullable();
-      table.date('expiry_date');
-      table.timestamp('approved_at');
-      table.timestamp('created_at').defaultTo(knex.fn.now());
-    });
-};
-
-exports.down = function(knex) {
-  return knex.schema
-    .dropTableIfExists('quotes')
-    .dropTableIfExists('reports')
-    .dropTableIfExists('deficiencies')
-    .dropTableIfExists('devices')
-    .dropTableIfExists('floors')
-    .dropTableIfExists('buildings')
-    .dropTableIfExists('customers')
-    .dropTableIfExists('users')
-    .dropTableIfExists('roles')
-    .dropTableIfExists('companies');
-};`;
+      return schema;
     }
 
-    // Default to PostgreSQL DDL SQL script
-    return `-- 1. Enable UUID Extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    // Default to SQL DDL
+    let schema = `CREATE EXTENSION IF NOT EXISTS "uuid-ossp";\n`;
 
--- 2. Companies Table
-CREATE TABLE companies (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOTNullable,
-    logo_url VARCHAR(255),
-    address TEXT,
-    phone VARCHAR(50),
-    email VARCHAR(255),
-    service_areas JSONB,
-    branding JSONB,
-    quote_terms TEXT,
-    report_footer TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+    erdTables.forEach(t => {
+      schema += `\n-- Table: ${t.name}\nCREATE TABLE ${t.id} (\n`;
+      const fieldLines: string[] = [];
 
--- 3. Roles Table
-CREATE TABLE roles (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(100) NOT NULL,
-    permissions TEXT[],
-    description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+      t.fields.forEach(f => {
+        const parts = f.split(" (");
+        const name = parts[0].trim();
+        const rest = parts[1] ? parts[1].replace(")", "") : "";
+        const typeLower = rest.toLowerCase();
 
--- 4. Users Table
-CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    role_id UUID REFERENCES roles(id),
-    asttbc_number VARCHAR(50),
-    status VARCHAR(50) DEFAULT 'active',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+        let sqlLine = `    ${name.padEnd(20)}`;
 
--- 5. Customers Table
-CREATE TABLE customers (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
-    billing_address TEXT,
-    primary_contact VARCHAR(255),
-    email VARCHAR(255),
-    phone VARCHAR(50),
-    portal_status VARCHAR(50) DEFAULT 'inactive',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+        if (typeLower.includes("pk")) {
+          sqlLine += " UUID PRIMARY KEY DEFAULT uuid_generate_v4()";
+        } else if (typeLower.includes("fk")) {
+          const refTable = erdRelations.find(r => r.to === t.id && name.startsWith(r.from.slice(0, -1)))?.from || "companies";
+          sqlLine += ` UUID REFERENCES ${refTable}(id) ON DELETE CASCADE`;
+        } else if (typeLower.includes("varchar")) {
+          sqlLine += " VARCHAR(255)";
+        } else if (typeLower.includes("text")) {
+          sqlLine += " TEXT";
+        } else if (typeLower.includes("int")) {
+          sqlLine += " INTEGER";
+        } else if (typeLower.includes("decimal") || typeLower.includes("numeric")) {
+          sqlLine += " DECIMAL(12, 2)";
+        } else if (typeLower.includes("boolean")) {
+          sqlLine += " BOOLEAN DEFAULT FALSE";
+        } else if (typeLower.includes("timestamp") || typeLower.includes("date")) {
+          sqlLine += " TIMESTAMP DEFAULT CURRENT_TIMESTAMP";
+        }
 
--- 6. Buildings Table
-CREATE TABLE buildings (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    customer_id UUID REFERENCES customers(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
-    address TEXT NOT NULL,
-    occupancy_type VARCHAR(100),
-    num_floors INT NOT NULL,
-    compliance_status VARCHAR(50) DEFAULT 'compliant',
-    last_inspection_at TIMESTAMP,
-    next_inspection_due TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+        fieldLines.push(sqlLine);
+      });
 
--- 7. Floors Table
-CREATE TABLE floors (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    building_id UUID REFERENCES buildings(id) ON DELETE CASCADE,
-    name VARCHAR(100) NOT NULL,
-    sequence INT NOT NULL,
-    blueprint_url VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+      schema += fieldLines.join(",\n");
+      schema += `\n);\n`;
+    });
 
--- 8. Devices Table
-CREATE TABLE devices (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    company_id UUID REFERENCES companies(id),
-    customer_id UUID REFERENCES customers(id),
-    building_id UUID REFERENCES buildings(id),
-    floor_id UUID REFERENCES floors(id),
-    device_code VARCHAR(100) NOT NULL,
-    location TEXT NOT NULL,
-    map_x DECIMAL(5, 2) NOT NULL,
-    map_y DECIMAL(5, 2) NOT NULL,
-    status VARCHAR(50) DEFAULT 'not_tested',
-    qr_code VARCHAR(255),
-    nfc_tag VARCHAR(255),
-    last_tested_at TIMESTAMP,
-    last_tested_by UUID REFERENCES users(id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- 9. Deficiencies Table
-CREATE TABLE deficiencies (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    company_id UUID REFERENCES companies(id),
-    building_id UUID REFERENCES buildings(id),
-    device_id UUID REFERENCES devices(id) ON DELETE CASCADE,
-    priority VARCHAR(50) NOT NULL,
-    technical_description TEXT NOT NULL,
-    customer_description TEXT NOT NULL,
-    internal_note TEXT,
-    recommended_repair TEXT,
-    status VARCHAR(50) DEFAULT 'open',
-    add_to_report BOOLEAN DEFAULT TRUE,
-    add_to_quote BOOLEAN DEFAULT TRUE,
-    share_with_government BOOLEAN DEFAULT FALSE,
-    created_by UUID REFERENCES users(id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    closed_at TIMESTAMP
-);
-
--- 10. Reports Table
-CREATE TABLE reports (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    company_id UUID REFERENCES companies(id),
-    customer_id UUID REFERENCES customers(id),
-    building_id UUID REFERENCES buildings(id),
-    report_number VARCHAR(100) NOT NULL,
-    report_type VARCHAR(100) NOT NULL,
-    status VARCHAR(50) DEFAULT 'draft',
-    pdf_url VARCHAR(255),
-    sent_at TIMESTAMP,
-    approved_at TIMESTAMP,
-    created_by UUID REFERENCES users(id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- 11. Quotes Table
-CREATE TABLE quotes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    company_id UUID REFERENCES companies(id),
-    customer_id UUID REFERENCES customers(id),
-    building_id UUID REFERENCES buildings(id),
-    quote_number VARCHAR(100) NOT NULL,
-    status VARCHAR(50) DEFAULT 'draft',
-    subtotal DECIMAL(12, 2) NOT NULL,
-    tax DECIMAL(12, 2) NOT NULL,
-    total DECIMAL(12, 2) NOT NULL,
-    expiry_date DATE,
-    approved_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);`;
+    return schema;
   };
 
   const handleCopySchema = () => {
