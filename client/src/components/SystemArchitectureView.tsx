@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { 
   Database, ShieldAlert, GitBranch, FileText, DollarSign, Users, 
   Eye, FolderGit, History, WifiOff, Map, Server, KeyRound, TableProperties,
-  ArrowRight, CheckCircle2, AlertTriangle, Shield, Check, Info, Lock, Download, Code, FileCode
+  ArrowRight, CheckCircle2, AlertTriangle, Shield, Check, Info, Lock, Download, Code, FileCode, Plus, Trash2, Edit2, Move
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -247,6 +247,111 @@ export default function SystemArchitectureView() {
 
   const [exportFormat, setExportFormat] = useState<"prisma" | "knex" | "sql">("prisma");
   const [copiedSchema, setCopiedSchema] = useState(false);
+
+  // ERD Diagram State
+  const [erdTables, setErdTables] = useState([
+    { id: "companies", name: "COMPANIES", x: 40, y: 30, fields: ["id (UUID, PK)", "name (VARCHAR)", "email (VARCHAR)", "phone (VARCHAR)", "address (TEXT)"] },
+    { id: "users", name: "USERS", x: 340, y: 30, fields: ["id (UUID, PK)", "company_id (UUID, FK)", "name (VARCHAR)", "email (VARCHAR)", "asttbc_number (VARCHAR)"] },
+    { id: "customers", name: "CUSTOMERS", x: 40, y: 220, fields: ["id (UUID, PK)", "company_id (UUID, FK)", "name (VARCHAR)", "primary_contact (VARCHAR)"] },
+    { id: "buildings", name: "BUILDINGS", x: 340, y: 220, fields: ["id (UUID, PK)", "customer_id (UUID, FK)", "name (VARCHAR)", "address (TEXT)"] },
+    { id: "devices", name: "DEVICES", x: 640, y: 120, fields: ["id (UUID, PK)", "building_id (UUID, FK)", "device_code (VARCHAR)", "location (TEXT)", "status (VARCHAR)"] }
+  ]);
+
+  const [erdRelations, setErdRelations] = useState([
+    { id: "r1", from: "companies", to: "users", type: "1:N" },
+    { id: "r2", from: "companies", to: "customers", type: "1:N" },
+    { id: "r3", from: "customers", to: "buildings", type: "1:N" },
+    { id: "r4", from: "buildings", to: "devices", type: "1:N" }
+  ]);
+
+  const [selectedErdTable, setSelectedErdTable] = useState<string | null>(null);
+  const [newFieldName, setNewErdFieldName] = useState("");
+  const [newFieldType, setNewErdFieldType] = useState("VARCHAR");
+  const [draggedTableId, setDraggedTableId] = useState<string | null>(null);
+  const [dragOffset, setDragStartOffset] = useState({ x: 0, y: 0 });
+  const [newRelationFrom, setNewRelationFrom] = useState("");
+  const [newRelationTo, setNewRelationTo] = useState("");
+  const [newRelationType, setNewRelationType] = useState("1:N");
+
+  const handleErdTableMouseDown = (e: React.MouseEvent, tableId: string) => {
+    e.preventDefault();
+    setDraggedTableId(tableId);
+    const table = erdTables.find(t => t.id === tableId);
+    if (table) {
+      setDragStartOffset({
+        x: e.clientX - table.x,
+        y: e.clientY - table.y
+      });
+    }
+  };
+
+  const handleErdCanvasMouseMove = (e: React.MouseEvent) => {
+    if (draggedTableId) {
+      const newX = Math.max(10, Math.min(800, e.clientX - dragOffset.x));
+      const newY = Math.max(10, Math.min(450, e.clientY - dragOffset.y));
+      setErdTables(prev => prev.map(t => t.id === draggedTableId ? { ...t, x: newX, y: newY } : t));
+    }
+  };
+
+  const handleErdCanvasMouseUp = () => {
+    setDraggedTableId(null);
+  };
+
+  const handleAddErdField = () => {
+    if (!selectedErdTable || !newFieldName) return;
+    setErdTables(prev => prev.map(t => {
+      if (t.id === selectedErdTable) {
+        return {
+          ...t,
+          fields: [...t.fields, `${newFieldName.toLowerCase()} (${newFieldType})`]
+        };
+      }
+      return t;
+    }));
+    setNewErdFieldName("");
+  };
+
+  const handleRemoveErdField = (tableId: string, fieldIndex: number) => {
+    setErdTables(prev => prev.map(t => {
+      if (t.id === tableId) {
+        const updatedFields = [...t.fields];
+        updatedFields.splice(fieldIndex, 1);
+        return { ...t, fields: updatedFields };
+      }
+      return t;
+    }));
+  };
+
+  const handleAddErdRelation = () => {
+    if (!newRelationFrom || !newRelationTo || newRelationFrom === newRelationTo) return;
+    const relationId = `r_${Date.now()}`;
+    setErdRelations(prev => [
+      ...prev,
+      { id: relationId, from: newRelationFrom, to: newRelationTo, type: newRelationType }
+    ]);
+    setNewRelationFrom("");
+    setNewRelationTo("");
+  };
+
+  const handleRemoveErdRelation = (relationId: string) => {
+    setErdRelations(prev => prev.filter(r => r.id !== relationId));
+  };
+
+  const handleExportErdLayout = () => {
+    const erdLayout = {
+      tables: erdTables,
+      relations: erdRelations
+    };
+    const blob = new Blob([JSON.stringify(erdLayout, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "inspectra_erd_layout.json";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   // Seeding tool states
   const [seedingLogs, setSeedingLogs] = useState<string[]>([]);
@@ -1005,91 +1110,272 @@ CREATE TABLE quotes (
 
         {/* 2. RELATIONSHIP DIAGRAM */}
         <TabsContent value="relationship-diagram" className="space-y-4 outline-none">
-          <Card className="rounded-none bg-slate-950 border-cyan-500/20 font-mono">
-            <CardHeader className="border-b border-cyan-500/10 bg-slate-900/20 py-4">
-              <CardTitle className="text-sm font-bold text-cyan-400 uppercase flex items-center gap-2">
-                <GitBranch className="w-4 h-4 text-cyan-400" />
-                Stakeholder Data Flow & Relationships
-              </CardTitle>
-              <CardDescription className="text-[10px] text-slate-400 uppercase mt-1">
-                Visualizing how entities propagate across the platform, from company accounts down to client portals and emergency-response profiles.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6 overflow-x-auto">
-              <div className="min-w-[800px] p-6 bg-slate-900/20 border border-cyan-500/10 relative space-y-12">
-                
-                {/* Flow 1: Core Operations */}
-                <div className="space-y-4">
-                  <div className="text-[10px] text-cyan-500 font-bold uppercase tracking-wider mb-2">Flow A: Core Operations & Inspection Lifecycle</div>
-                  <div className="flex items-center justify-between gap-2">
-                    {[
-                      { name: "Company", desc: "Fire Protection Co" },
-                      { name: "Users", desc: "Technicians & Admins" },
-                      { name: "Customers", desc: "Property Management" },
-                      { name: "Buildings", desc: "Real Estate Portfolios" },
-                      { name: "Floors", desc: "Blueprints & Levels" },
-                      { name: "Site Maps", desc: "Interactive Coordinates" },
-                      { name: "Devices", desc: "Life-Safety Hardware Assets" }
-                    ].map((node, i, arr) => (
-                      <React.Fragment key={node.name}>
-                        <div className="flex-1 bg-slate-950 border border-cyan-500/30 p-3 text-center hover:border-cyan-400 transition-colors shadow-[0_0_10px_rgba(6,182,212,0.1)]">
-                          <div className="text-[10px] font-bold text-cyan-400">{node.name.toUpperCase()}</div>
-                          <div className="text-[8px] text-slate-500 mt-1 uppercase">{node.desc}</div>
-                        </div>
-                        {i < arr.length - 1 && <ArrowRight className="w-4 h-4 text-cyan-500/50 shrink-0" />}
-                      </React.Fragment>
-                    ))}
+          <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+            
+            {/* Interactive ERD Canvas */}
+            <div className="xl:col-span-3 space-y-4">
+              <Card className="rounded-none bg-slate-950 border-cyan-500/20 font-mono">
+                <CardHeader className="border-b border-cyan-500/10 bg-slate-900/20 py-3.5">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle className="text-sm font-bold text-cyan-400 uppercase flex items-center gap-2">
+                        <GitBranch className="w-4 h-4 text-cyan-400 animate-pulse" />
+                        Interactive ERD Diagram Editor
+                      </CardTitle>
+                      <CardDescription className="text-[9px] text-slate-400 mt-1 leading-relaxed">
+                        Drag tables around the canvas to design relational layouts. Select a table to add custom fields or create relationships.
+                      </CardDescription>
+                    </div>
+                    <Button
+                      onClick={handleExportErdLayout}
+                      className="h-7 px-3 bg-cyan-950 border border-cyan-500 text-cyan-400 rounded-none hover:bg-cyan-500/20 text-[9px] font-bold uppercase"
+                    >
+                      <Download className="w-3 h-3 mr-1.5" />
+                      EXPORT LAYOUT JSON
+                    </Button>
                   </div>
-                </div>
+                </CardHeader>
+                <CardContent className="p-4">
+                  
+                  {/* ERD Canvas */}
+                  <div 
+                    onMouseMove={handleErdCanvasMouseMove}
+                    onMouseUp={handleErdCanvasMouseUp}
+                    className="relative w-full h-[450px] bg-slate-950 bg-[radial-gradient(rgba(6,182,212,0.1)_1px,transparent_1px)] [background-size:16px_16px] border border-cyan-500/10 overflow-hidden cursor-crosshair select-none"
+                  >
+                    
+                    {/* SVG Relationship Lines */}
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                      <defs>
+                        <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                          <path d="M 0 0 L 10 5 L 0 10 z" fill="#06b6d4" />
+                        </marker>
+                      </defs>
+                      {erdRelations.map((rel) => {
+                        const fromTable = erdTables.find(t => t.id === rel.from);
+                        const toTable = erdTables.find(t => t.id === rel.to);
+                        if (!fromTable || !toTable) return null;
 
-                {/* Flow 2: Inspection Outputs */}
-                <div className="space-y-4">
-                  <div className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider mb-2">Flow B: Field Testing, Compliance Outputs & Approvals</div>
-                  <div className="flex items-center justify-between gap-2">
-                    {[
-                      { name: "Inspections", desc: "Scheduled Events" },
-                      { name: "Results", desc: "Pass / Fail Logs" },
-                      { name: "Deficiencies", desc: "Logged Hardware Faults" },
-                      { name: "Reports", desc: "Compliance PDF Drafts" },
-                      { name: "Quotes", desc: "Repairs Estimates" },
-                      { name: "PM Portal", desc: "Customer Authorizations" }
-                    ].map((node, i, arr) => (
-                      <React.Fragment key={node.name}>
-                        <div className="flex-1 bg-slate-950 border border-emerald-500/30 p-3 text-center hover:border-emerald-400 transition-colors shadow-[0_0_10px_rgba(16,185,129,0.1)]">
-                          <div className="text-[10px] font-bold text-emerald-400">{node.name.toUpperCase()}</div>
-                          <div className="text-[8px] text-slate-500 mt-1 uppercase">{node.desc}</div>
+                        // Calculate centers of tables (width approx 160px, height approx variable)
+                        const startX = fromTable.x + 80;
+                        const startY = fromTable.y + 60;
+                        const endX = toTable.x + 80;
+                        const endY = toTable.y + 60;
+
+                        return (
+                          <g key={rel.id}>
+                            <line 
+                              x1={startX} 
+                              y1={startY} 
+                              x2={endX} 
+                              y2={endY} 
+                              stroke="#06b6d4" 
+                              strokeWidth="1" 
+                              strokeDasharray="4 4"
+                              opacity="0.6"
+                              markerEnd="url(#arrow)"
+                            />
+                            <rect 
+                              x={(startX + endX) / 2 - 15} 
+                              y={(startY + endY) / 2 - 8} 
+                              width="30" 
+                              height="16" 
+                              fill="#020617" 
+                              stroke="#06b6d4" 
+                              strokeWidth="0.5"
+                            />
+                            <text 
+                              x={(startX + endX) / 2} 
+                              y={(startY + endY) / 2 + 4} 
+                              fill="#22d3ee" 
+                              fontSize="8" 
+                              textAnchor="middle"
+                              fontWeight="bold"
+                            >
+                              {rel.type}
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </svg>
+
+                    {/* Draggable Table Nodes */}
+                    {erdTables.map((t) => (
+                      <div
+                        key={t.id}
+                        style={{ left: t.x, top: t.y }}
+                        onClick={() => setSelectedErdTable(t.id)}
+                        className={`absolute w-[180px] bg-slate-900/90 border font-mono p-2.5 space-y-2 cursor-grab active:cursor-grabbing ${
+                          selectedErdTable === t.id 
+                            ? "border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.25)]" 
+                            : "border-cyan-500/20 hover:border-cyan-500/50"
+                        }`}
+                      >
+                        {/* Table Header / Handle */}
+                        <div 
+                          onMouseDown={(e) => handleErdTableMouseDown(e, t.id)}
+                          className="flex items-center justify-between border-b border-cyan-500/20 pb-1.5"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <Database className="w-3 h-3 text-cyan-400" />
+                            <span className="text-[9px] font-bold text-cyan-400 uppercase">{t.name}</span>
+                          </div>
+                          <Move className="w-3 h-3 text-slate-500 hover:text-cyan-400 cursor-move" />
                         </div>
-                        {i < arr.length - 1 && <ArrowRight className="w-4 h-4 text-emerald-500/50 shrink-0" />}
-                      </React.Fragment>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Flow 3: Government Emergency Sharing */}
-                <div className="space-y-4">
-                  <div className="text-[10px] text-fuchsia-500 font-bold uppercase tracking-wider mb-2">Flow C: Public Safety & Municipal Emergency Data Sharing</div>
-                  <div className="flex items-center gap-2">
-                    {[
-                      { name: "Building", desc: "Registered Site", color: "border-cyan-500/30 text-cyan-400" },
-                      { name: "Emergency Profile", desc: "FDC / Lockbox / Utilities", color: "border-fuchsia-500/40 text-fuchsia-400" },
-                      { name: "Sharing Rules", desc: "Privacy Controls", color: "border-fuchsia-500/40 text-fuchsia-400" },
-                      { name: "Gov / FD Portal", desc: "Emergency Responders", color: "border-fuchsia-500/40 text-fuchsia-400" },
-                      { name: "Emergency View", desc: "Tactical HUD Map Overlay", color: "border-fuchsia-500/40 text-fuchsia-400 animate-pulse" }
-                    ].map((node, i, arr) => (
-                      <React.Fragment key={node.name}>
-                        <div className={`w-[150px] bg-slate-950 border p-3 text-center hover:border-fuchsia-400 transition-colors shadow-[0_0_10px_rgba(217,70,239,0.1)] ${node.color}`}>
-                          <div className="text-[10px] font-bold">{node.name.toUpperCase()}</div>
-                          <div className="text-[8px] text-slate-500 mt-1 uppercase">{node.desc}</div>
+                        {/* Table Columns List */}
+                        <div className="space-y-1 text-[8px] text-slate-300">
+                          {t.fields.map((field, idx) => (
+                            <div key={idx} className="flex justify-between items-center group bg-slate-950/40 p-1">
+                              <span>{field.split(" ")[0]}</span>
+                              <div className="flex items-center gap-1">
+                                <span className="text-slate-500 text-[7px] uppercase">{field.substring(field.indexOf(" ") + 1)}</span>
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); handleRemoveErdField(t.id, idx); }}
+                                  className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-400 ml-1"
+                                >
+                                  <Trash2 className="w-2.5 h-2.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                        {i < arr.length - 1 && <ArrowRight className="w-4 h-4 text-fuchsia-500/50 shrink-0" />}
-                      </React.Fragment>
+                      </div>
                     ))}
-                  </div>
-                </div>
 
-              </div>
-            </CardContent>
-          </Card>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* ERD Control Panel */}
+            <div className="xl:col-span-1 space-y-4">
+              <Card className="rounded-none bg-slate-950 border-cyan-500/20 font-mono">
+                <CardHeader className="border-b border-cyan-500/10 bg-slate-900/20 py-3.5">
+                  <CardTitle className="text-xs font-bold text-cyan-400 uppercase flex items-center gap-2">
+                    <Edit2 className="w-3.5 h-3.5 text-cyan-400" />
+                    ERD Controls
+                  </CardTitle>
+                  <CardDescription className="text-[9px] text-slate-400 mt-1">
+                    Manage fields and entity connections.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 space-y-4">
+                  
+                  {/* Field Editor (Contextual) */}
+                  <div className="space-y-2 border-b border-cyan-500/10 pb-4">
+                    <span className="text-[9px] text-slate-500 uppercase font-bold block">Add Field to Selected:</span>
+                    {selectedErdTable ? (
+                      <div className="space-y-2">
+                        <div className="p-2 bg-cyan-950/10 border border-cyan-500/20 text-[8px] text-cyan-400 uppercase">
+                          Selected Table: {erdTables.find(t => t.id === selectedErdTable)?.name}
+                        </div>
+                        <div className="flex gap-1.5">
+                          <input
+                            type="text"
+                            placeholder="FIELD NAME"
+                            value={newFieldName}
+                            onChange={(e) => setNewErdFieldName(e.target.value)}
+                            className="flex-1 h-7 bg-slate-900 border border-cyan-500/20 text-[9px] text-cyan-400 px-2 rounded-none outline-none focus:border-cyan-400 font-mono uppercase"
+                          />
+                          <select
+                            value={newFieldType}
+                            onChange={(e) => setNewErdFieldType(e.target.value)}
+                            className="h-7 bg-slate-900 border border-cyan-500/20 text-[9px] text-cyan-400 px-1.5 rounded-none outline-none focus:border-cyan-400 font-mono"
+                          >
+                            {["VARCHAR", "UUID", "TEXT", "INT", "DECIMAL", "BOOLEAN", "TIMESTAMP"].map(t => (
+                              <option key={t} value={t}>{t}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <Button
+                          onClick={handleAddErdField}
+                          className="w-full h-7 bg-cyan-950 border border-cyan-500 text-cyan-400 rounded-none hover:bg-cyan-500/20 text-[9px] font-bold uppercase flex items-center justify-center gap-1"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>ADD COLUMN</span>
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-slate-900/30 border border-slate-800 text-[8px] text-slate-500 uppercase italic">
+                        Select a table node on the canvas to add columns.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Relationship Creator */}
+                  <div className="space-y-2 border-b border-cyan-500/10 pb-4">
+                    <span className="text-[9px] text-slate-500 uppercase font-bold block">Create Relationship:</span>
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <select
+                          value={newRelationFrom}
+                          onChange={(e) => setNewRelationFrom(e.target.value)}
+                          className="h-7 bg-slate-900 border border-cyan-500/20 text-[9px] text-cyan-400 px-1.5 rounded-none outline-none focus:border-cyan-400 font-mono"
+                        >
+                          <option value="">FROM TABLE</option>
+                          {erdTables.map(t => (
+                            <option key={t.id} value={t.id}>{t.name}</option>
+                          ))}
+                        </select>
+                        <select
+                          value={newRelationTo}
+                          onChange={(e) => setNewRelationTo(e.target.value)}
+                          className="h-7 bg-slate-900 border border-cyan-500/20 text-[9px] text-cyan-400 px-1.5 rounded-none outline-none focus:border-cyan-400 font-mono"
+                        >
+                          <option value="">TO TABLE</option>
+                          {erdTables.map(t => (
+                            <option key={t.id} value={t.id}>{t.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <select
+                          value={newRelationType}
+                          onChange={(e) => setNewRelationType(e.target.value)}
+                          className="flex-1 h-7 bg-slate-900 border border-cyan-500/20 text-[9px] text-cyan-400 px-1.5 rounded-none outline-none focus:border-cyan-400 font-mono"
+                        >
+                          <option value="1:N">1:N (ONE TO MANY)</option>
+                          <option value="N:1">N:1 (MANY TO ONE)</option>
+                          <option value="1:1">1:1 (ONE TO ONE)</option>
+                        </select>
+                        <Button
+                          onClick={handleAddErdRelation}
+                          className="h-7 px-3 bg-cyan-950 border border-cyan-500 text-cyan-400 rounded-none hover:bg-cyan-500/20 text-[9px] font-bold uppercase"
+                        >
+                          LINK
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Relationships List */}
+                  <div className="space-y-1.5">
+                    <span className="text-[9px] text-slate-500 uppercase font-bold block">Active Connections:</span>
+                    <div className="space-y-1.5 max-h-[150px] overflow-y-auto pr-1">
+                      {erdRelations.map((rel) => (
+                        <div key={rel.id} className="p-2 bg-slate-900/40 border border-cyan-500/5 flex items-center justify-between text-[8px] text-slate-400">
+                          <div className="flex items-center gap-1 font-mono">
+                            <span className="text-cyan-400 uppercase font-bold">{rel.from}</span>
+                            <span className="text-slate-600">({rel.type})</span>
+                            <span className="text-cyan-400 uppercase font-bold">{rel.to}</span>
+                          </div>
+                          <button 
+                            onClick={() => handleRemoveErdRelation(rel.id)}
+                            className="text-red-500 hover:text-red-400"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                </CardContent>
+              </Card>
+            </div>
+
+          </div>
         </TabsContent>
 
         {/* 3. USER PERMISSIONS */}
