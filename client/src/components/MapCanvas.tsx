@@ -76,7 +76,7 @@ export default function MapCanvas({
   const isEmergencyAsset = (type: DeviceType): boolean => {
     const emergencyTypes: DeviceType[] = [
       "Fire Alarm Panel", "Annunciator", "FDC", "Sprinkler Riser", 
-      "Lockbox", "Roof Access", "Electrical Shutoff", "Gas Shutoff", "Standpipe"
+      "Lockbox", "Roof Access", "Electrical Shutoff", "Gas Shutoff", "Standpipe", "Smoke Control Panel"
     ];
     return emergencyTypes.includes(type);
   };
@@ -107,7 +107,7 @@ export default function MapCanvas({
       case "deficiency":
         return "bg-amber-500 text-slate-950 shadow-[0_0_10px_#f59e0b] border-amber-300";
       case "testing":
-        return "bg-cyan-500 text-slate-950 shadow-[0_0_15px_#06b6d4] border-cyan-300 animate-ping";
+        return "bg-cyan-500 text-slate-950 shadow-[0_0_15px_#06b6d4] border-cyan-300 animate-pulse";
       case "no_access":
         return "bg-slate-500 text-slate-950 shadow-[0_0_8px_#6b7280] border-slate-300";
       default:
@@ -156,9 +156,9 @@ export default function MapCanvas({
 
   // Dynamic schematic rendering based on active floor
   const renderFloorSchematic = () => {
-    const strokeColor = theme === "light" ? "rgba(71, 85, 105, 0.4)" : "rgba(6, 182, 212, 0.25)";
-    const wallColor = theme === "light" ? "rgba(15, 23, 42, 0.8)" : "rgba(6, 182, 212, 0.85)";
-    const roomBg = theme === "light" ? "rgba(241, 245, 249, 0.8)" : "rgba(8, 47, 73, 0.15)";
+    const strokeColor = theme === "light" ? "rgba(71, 85, 105, 0.2)" : "rgba(6, 182, 212, 0.25)";
+    const wallColor = theme === "light" ? "rgba(15, 23, 42, 0.7)" : "rgba(6, 182, 212, 0.85)";
+    const roomBg = theme === "light" ? "rgba(241, 245, 249, 0.7)" : "rgba(8, 47, 73, 0.15)";
 
     return (
       <svg className="w-full h-full min-h-[450px]" viewBox="0 0 800 500" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -174,7 +174,7 @@ export default function MapCanvas({
         <rect x="50" y="50" width="700" height="400" rx="4" stroke={wallColor} strokeWidth="3" fill={roomBg} />
 
         {/* Core structural dividers based on Floor */}
-        {activeFloor === "P1 Parkade" && (
+        {activeFloor === "Parkade P1" && (
           <>
             {/* Pillars and Parking Bays */}
             <line x1="50" y1="150" x2="350" y2="150" stroke={wallColor} strokeWidth="2" strokeDasharray="5,5" />
@@ -228,18 +228,6 @@ export default function MapCanvas({
             <text x="400" y="240" fill={theme === "light" ? "#475569" : "#22d3ee"} fontSize="10" fontFamily="monospace" textAnchor="middle" fontWeight="bold">ELEVATOR_PENTHOUSE</text>
           </>
         )}
-
-        {activeFloor === "Mechanical Room" && (
-          <>
-            {/* High Voltage Transformer Enclosure */}
-            <rect x="100" y="100" width="250" height="300" stroke={wallColor} strokeWidth="2" fill="rgba(234,179,8,0.03)" />
-            <text x="225" y="250" fill="#eab308" fontSize="10" fontFamily="monospace" textAnchor="middle">HIGH_VOLTAGE_TRANSFORMER</text>
-
-            {/* Main Boiler & Water Inflow Zone */}
-            <rect x="450" y="100" width="250" height="300" stroke={wallColor} strokeWidth="2" fill="rgba(6,182,212,0.03)" />
-            <text x="575" y="250" fill={theme === "light" ? "#475569" : "#22d3ee"} fontSize="10" fontFamily="monospace" textAnchor="middle">BOILER_&_RISER_VAULT</text>
-          </>
-        )}
       </svg>
     );
   };
@@ -289,7 +277,7 @@ export default function MapCanvas({
         </div>
       )}
 
-      {/* Main Map Container */}
+      {/* Main Map Canvas Area */}
       <div 
         ref={containerRef}
         onMouseDown={handleMouseDown}
@@ -338,6 +326,7 @@ export default function MapCanvas({
             return (
               <button
                 key={dev.id}
+                id={`pin-${dev.id}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onSelectDevice(dev.id);
@@ -354,67 +343,76 @@ export default function MapCanvas({
                 }`}
               >
                 {/* Glowing ring under selected or testing pins */}
-                {(isSelected || dev.status === "testing" || (activeRole === "government" && isEmergency)) && (
-                  <div className={`absolute -inset-2 rounded-full border opacity-50 animate-ping pointer-events-none ${
-                    activeRole === "government" && isEmergency ? "border-fuchsia-500" : "border-cyan-500"
-                  }`} />
+                {isSelected && (
+                  <span className="absolute inset-0 rounded-none border border-cyan-400 animate-ping opacity-75 pointer-events-none" />
+                )}
+                {dev.status === "testing" && (
+                  <span className="absolute inset-[-4px] rounded-none border border-cyan-500 animate-ping opacity-60 pointer-events-none" />
+                )}
+                {activeRole === "government" && isEmergency && (
+                  <span className="absolute inset-[-6px] rounded-none border border-fuchsia-500/40 animate-pulse pointer-events-none" />
                 )}
 
                 {/* Device Icon */}
-                {renderDeviceIcon(dev.type, "w-4 h-4")}
+                {renderDeviceIcon(dev.type)}
 
-                {/* Mini label showing on hover */}
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:flex flex-col items-center pointer-events-none">
-                  <div className="bg-slate-950/95 border border-cyan-500/30 text-cyan-400 text-[8px] font-mono py-0.5 px-1.5 whitespace-nowrap shadow-lg">
-                    {dev.label} // {dev.type.toUpperCase()}
-                  </div>
-                  <div className="w-1.5 h-1.5 bg-slate-950 border-r border-b border-cyan-500/30 rotate-45 -mt-1" />
-                </div>
+                {/* Tooltip Overlay */}
+                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-950/95 border border-cyan-500/30 text-cyan-400 text-[9px] font-mono whitespace-nowrap rounded-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-40 shadow-[0_0_10px_rgba(6,182,212,0.15)] uppercase">
+                  {dev.label} // {dev.type}
+                  {dev.status !== "not_tested" && ` [${dev.status.toUpperCase()}]`}
+                </span>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Map Legend Overlay Footer */}
-      <div className="bg-slate-950/90 border-t border-cyan-500/20 px-4 py-3 font-mono text-[9px] text-slate-500 flex flex-wrap items-center justify-between gap-4 backdrop-blur-md">
-        <div className="flex flex-wrap items-center gap-4">
-          <span className="font-bold text-cyan-500 uppercase text-[10px]">LEGEND:</span>
+      {/* Map Legends Footer */}
+      <div className="border-t border-cyan-500/10 bg-slate-950/60 p-3 backdrop-blur-md font-mono text-[9px] flex flex-wrap gap-x-6 gap-y-2 items-center justify-between">
+        <div className="flex items-center gap-4 flex-wrap">
+          <span className="text-slate-500 uppercase font-bold">MAP_STATUS_LEGEND:</span>
           
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 bg-slate-800 border border-slate-700" />
-            <span>PENDING / NOT_TESTED</span>
+            <span className="text-slate-400 uppercase">PENDING (NOT TESTED)</span>
           </div>
 
           <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 bg-emerald-500 shadow-[0_0_5px_#10b981]" />
-            <span className="text-emerald-400">PASSED</span>
+            <div className="w-2.5 h-2.5 bg-emerald-500 border border-emerald-300 shadow-[0_0_5px_#10b981]" />
+            <span className="text-slate-400 uppercase">PASSED (COMPLIANT)</span>
           </div>
 
           <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 bg-amber-500 shadow-[0_0_5px_#f59e0b]" />
-            <span className="text-amber-400">WARNING / DEFICIENCY</span>
+            <div className="w-2.5 h-2.5 bg-rose-500 border border-rose-300 shadow-[0_0_5px_#f43f5e]" />
+            <span className="text-slate-400 uppercase">FAILED (CRITICAL)</span>
           </div>
 
           <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 bg-rose-500 shadow-[0_0_5px_#f43f5e]" />
-            <span className="text-rose-400">FAILED / CRITICAL</span>
+            <div className="w-2.5 h-2.5 bg-amber-500 border border-amber-300 shadow-[0_0_5px_#f59e0b]" />
+            <span className="text-slate-400 uppercase">DEFICIENCY (WARNING)</span>
           </div>
 
           <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 bg-cyan-500 shadow-[0_0_5px_#06b6d4] animate-pulse" />
-            <span className="text-cyan-400">TEST_IN_PROGRESS</span>
+            <div className="w-2.5 h-2.5 bg-cyan-500 border border-cyan-300 shadow-[0_0_5px_#06b6d4]" />
+            <span className="text-slate-400 uppercase">TESTING IN PROGRESS</span>
           </div>
 
           <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 bg-fuchsia-500 shadow-[0_0_5px_#d946ef]" />
-            <span className="text-fuchsia-400 font-bold">EMERGENCY_RESPONSE_ASSET</span>
+            <div className="w-2.5 h-2.5 bg-slate-500 border border-slate-300" />
+            <span className="text-slate-400 uppercase">NO ACCESS</span>
           </div>
+
+          {activeRole === "government" && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 bg-fuchsia-500 border border-fuchsia-300 shadow-[0_0_8px_#d946ef]" />
+              <span className="text-fuchsia-400 uppercase font-bold">EMERGENCY RESPOND-NODE</span>
+            </div>
+          )}
         </div>
 
-        <div className="flex items-center gap-1.5 text-slate-500 text-[8px] uppercase">
-          <Info className="w-3 h-3 text-cyan-500" />
-          <span>DRAG TO PAN // SCROLL TO ZOOM</span>
+        <div className="text-slate-500 uppercase flex items-center gap-1.5">
+          <Info className="w-3.5 h-3.5 text-cyan-500/50" />
+          <span>DRAG TO PAN // SCROLL OR HUD BUTTONS TO ZOOM</span>
         </div>
       </div>
     </div>

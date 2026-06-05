@@ -20,45 +20,118 @@ export default function DemoWalkthrough({ onStepChange, activeRole, setActiveRol
   const [minimized, setMinimized] = useState(false);
 
   const steps: Step[] = [
+    // Scenario 1: Broken Smoke Detector
     {
-      title: "1. Select a Building",
-      desc: "Begin by verifying the target facility. We are currently operating at 'Harbour View Apartments' on Vancouver's life-safety registry.",
-      action: "Select 'Harbour View Apartments' in the header profile."
+      title: "1. Start Walkthrough",
+      desc: "Welcome to the Inspectra SaaS Demo. We are currently acting as a Fire Protection Company technician at Harbour View Apartments.",
+      action: "Ensure your role is set to 'Fire Company', then click Next."
     },
     {
-      title: "2. Open Visual Site Map",
-      desc: "Switch to the 'Visual Site Map' in the main navigation. This displays interactive blueprint-style schematics for all 6 floors.",
-      action: "Click 'Visual Site Map' in the main sidebar."
+      title: "2. Search for Device",
+      desc: "We need to test a smoke detector that was reported faulty.",
+      action: "Type 'SD-M-10' in the search bar on the left sidebar."
     },
     {
-      title: "3. Run Automated Sweep",
-      desc: "Simulate a technician's inspection sweep by clicking 'RUN SWEEP'. The system will ping untested nodes on the map and log telemetry results.",
-      action: "Click 'RUN SWEEP' in the top header to start testing."
+      title: "3. Open Device Details",
+      desc: "The search filters the list. Click on the device to open its details panel.",
+      action: "Click on 'SD-M-10' in the list to open the detail panel."
     },
     {
-      title: "4. Log a Deficiency",
-      desc: "When a node fails or reports a warning, click its pin on the map. In the action panel, click 'Mark Fail' or 'Deficiency' to trigger the NFPA compliance modal.",
-      action: "Select a device, click 'Mark Fail', fill the details, and click 'Commit'."
+      title: "4. Mark as Failed",
+      desc: "The device is physically broken and fails testing.",
+      action: "Click the 'MARK_FAIL' button in the Device Details Panel."
     },
     {
-      title: "5. Convert to Quote Item",
-      desc: "Open the 'Quotes' section. Deficiencies logged with 'Auto-Generate Quote' enabled are instantly compiled into pricing items with mock labor and material estimates.",
-      action: "Click 'Quotes' in the sidebar to review generated quotes."
+      title: "5. Log Deficiency",
+      desc: "The NFPA Deficiency Modal appears. We need to log the specifics.",
+      action: "Select 'Critical' priority, select an NFPA code, upload a photo, check 'Auto-Generate Quote', and click 'COMMIT'."
     },
     {
-      title: "6. Property Manager Portal",
-      desc: "Switch your role to 'Property Manager'. See a clean, simplified compliance dashboard, approve repair quotes, and download client-ready PDF inspection reports.",
-      action: "Toggle 'Property Manager' role in the header selector."
+      title: "6. Review Status",
+      desc: "The device is now marked as FAILED in red, and the deficiency is logged.",
+      action: "Notice the updated customer and internal notes, then click Next."
     },
     {
-      title: "7. Emergency View (Gov Mode)",
-      desc: "Switch to 'Government / Fire Department' role. The map dynamically filters out normal clutter, showing only fire access routes, shutoffs, risers, and emergency profiles.",
-      action: "Toggle 'Government' role and view the purple-highlighted emergency assets."
+      title: "7. Switch Role: Property Manager",
+      desc: "Now, let's see what the customer (Property Manager) sees.",
+      action: "Change your role to 'Property Manager' using the top-right dropdown."
     },
     {
-      title: "8. Municipal Sharing Controls",
-      desc: "Open 'Municipal Sharing'. Toggle exactly what emergency-response data is shared with municipal fire departments versus what private business records remain protected.",
-      action: "Click 'Municipal Sharing' in the sidebar to customize privacy settings."
+      title: "8. View Customer Dashboard",
+      desc: "The customer dashboard shows high-level compliance metrics.",
+      action: "Navigate to the 'Buildings' tab and observe the open deficiencies and quotes."
+    },
+    {
+      title: "9. Open Quotes",
+      desc: "The customer needs to review the quote we auto-generated for SD-M-10.",
+      action: "Click on the 'Quotes' tab in the sidebar."
+    },
+    {
+      title: "10. Approve Quote",
+      desc: "The quote details the labor and material costs to replace the smoke detector.",
+      action: "Click 'APPROVE_QUOTE' on quote Q-2026-1047."
+    },
+    {
+      title: "11. Switch Role: Fire Company",
+      desc: "Back to the technician view to see the approved quote.",
+      action: "Change your role back to 'Fire Company'."
+    },
+    {
+      title: "12. Verify Resolution",
+      desc: "The quote is approved, meaning the work order is authorized.",
+      action: "Notice the quote status is APPROVED. Click Next."
+    },
+
+    // Scenario 2: Leaking Sprinkler Supervisory Switch
+    {
+      title: "13. Navigate to Parkade",
+      desc: "Next scenario: A leaking sprinkler valve in the basement.",
+      action: "Go to the 'Visual Site Map' and select 'Parkade P1' from the floor dropdown."
+    },
+    {
+      title: "14. Search for Sprinkler Valve",
+      desc: "Find the specific supervisory switch.",
+      action: "Type 'SUPV-D-01' in the search bar."
+    },
+    {
+      title: "15. Open Device Details",
+      desc: "Click the device to view its details.",
+      action: "Click 'SUPV-D-01' in the list."
+    },
+    {
+      title: "16. Log Warning Deficiency",
+      desc: "The valve is leaking but hasn't failed completely yet.",
+      action: "Click the 'DEFICIENCY' button (Warning, not Fail)."
+    },
+    {
+      title: "17. Submit Deficiency",
+      desc: "Log the leak details.",
+      action: "Select 'Medium' priority, upload a photo, and click 'COMMIT'."
+    },
+    {
+      title: "18. Switch Role: Government",
+      desc: "Let's see how the Fire Department views this building.",
+      action: "Change your role to 'Government / Fire Department'."
+    },
+    {
+      title: "19. View Emergency Assets",
+      desc: "The map filters out standard devices and only highlights critical emergency assets in high-contrast purple.",
+      action: "Observe the Emergency View on the map."
+    },
+    {
+      title: "20. Inspect FACP",
+      desc: "The Fire Department needs to check the main Fire Alarm Control Panel.",
+      action: "Click the 'FACP-M-01' node on the map."
+    },
+    {
+      title: "21. Switch Role: Fire Company",
+      desc: "Return to the technician view to finish the setup.",
+      action: "Change your role back to 'Fire Company'."
+    },
+    {
+      title: "22. Complete Setup Wizard",
+      desc: "The building setup is almost complete.",
+      action: "Go to the 'Setup Wizard' tab and click 'STEP_06' to complete the onboarding."
     }
   ];
 
@@ -82,23 +155,36 @@ export default function DemoWalkthrough({ onStepChange, activeRole, setActiveRol
 
   const applyStepActions = (stepIndex: number) => {
     switch (stepIndex) {
+      case 0:
+        setActiveRole("fire_company");
+        break;
       case 1:
         setPage("map");
         break;
-      case 4:
-        setPage("quotes");
-        setActiveRole("fire_company");
-        break;
-      case 5:
-        setPage("dashboard");
+      case 6:
         setActiveRole("property_manager");
         break;
-      case 6:
-        setPage("map");
-        setActiveRole("government");
-        break;
       case 7:
-        setPage("sharing");
+        setPage("buildings");
+        break;
+      case 8:
+        setPage("quotes");
+        break;
+      case 10:
+        setActiveRole("fire_company");
+        break;
+      case 12:
+        setPage("map");
+        break;
+      case 17:
+        setActiveRole("government");
+        setPage("map");
+        break;
+      case 20:
+        setActiveRole("fire_company");
+        break;
+      case 21:
+        setPage("setup");
         break;
       default:
         break;
@@ -131,7 +217,7 @@ export default function DemoWalkthrough({ onStepChange, activeRole, setActiveRol
       </div>
 
       {/* Step Detail */}
-      <div className="flex flex-col gap-1.5 min-h-[110px]">
+      <div className="flex flex-col gap-1.5 min-h-[120px]">
         <h4 className="font-bold text-cyan-300 uppercase tracking-wide text-[11px]">{steps[currentStep].title}</h4>
         <p className="text-slate-400 text-[10px] leading-relaxed">{steps[currentStep].desc}</p>
         

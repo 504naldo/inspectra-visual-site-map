@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
-  MOCK_DEVICES, MOCK_REPORTS, MOCK_QUOTES, DEFAULT_MUNICIPAL_SHARING, SAMPLE_BUILDING,
-  Device, DeviceStatus, FLOORS, Report, Quote, MunicipalSharingSettings
+  MOCK_DEVICES, MOCK_REPORTS, MOCK_QUOTES, DEFAULT_MUNICIPAL_SHARING, MOCK_SETUP_STEPS,
+  Device, DeviceStatus, FLOORS, Report, Quote, MunicipalSharingSettings, SetupStep
 } from "@/lib/mock-data";
 import MapCanvas from "@/components/MapCanvas";
 import DeviceDetailPanel from "@/components/DeviceDetailPanel";
@@ -10,6 +10,9 @@ import DemoWalkthrough from "@/components/DemoWalkthrough";
 import ReportsView from "@/components/ReportsView";
 import QuotesView from "@/components/QuotesView";
 import MunicipalSharingView from "@/components/MunicipalSharingView";
+import BuildingsView from "@/components/BuildingsView";
+import SetupWizardView from "@/components/SetupWizardView";
+import DeficienciesView from "@/components/DeficienciesView";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -17,7 +20,7 @@ import {
   Flame, Shield, Radio, Droplets, Waves, ShieldAlert, Compass, 
   ArrowRight, Key, Search, Play, Pause, RotateCcw, LayoutDashboard, 
   Map as MapIcon, FileText, DollarSign, ShieldCheck, Sun, Moon, 
-  User, Building, ShieldAlert as GovIcon, PhoneCall, AlertTriangle
+  User, Building, ShieldAlert as GovIcon, PhoneCall, AlertTriangle, Settings, CheckCircle2
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -27,9 +30,10 @@ export default function Home() {
   const [reports, setReports] = useState<Report[]>(MOCK_REPORTS);
   const [quotes, setQuotes] = useState<Quote[]>(MOCK_QUOTES);
   const [sharingSettings, setSharingSettings] = useState<MunicipalSharingSettings>(DEFAULT_MUNICIPAL_SHARING);
+  const [setupSteps, setSetupSteps] = useState<SetupStep[]>(MOCK_SETUP_STEPS);
   
   // Navigation & View State
-  const [activePage, setActivePage] = useState<string>("map"); // "dashboard" | "map" | "reports" | "quotes" | "sharing"
+  const [activePage, setActivePage] = useState<string>("map"); // "buildings" | "map" | "deficiencies" | "reports" | "quotes" | "sharing" | "setup"
   const [activeFloor, setActiveFloor] = useState<string>("Main Floor");
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   
@@ -44,7 +48,6 @@ export default function Home() {
 
   // Simulation State
   const [isSimulating, setIsSimulating] = useState(false);
-  const [simIndex, setSimIndex] = useState(0);
   const simIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Deficiency Modal State
@@ -115,7 +118,7 @@ export default function Home() {
 
         // Step 2: Resolve with realistic outcome after 1s
         setTimeout(() => {
-          // 80% pass, 10% fail, 10% warning/deficiency
+          // 85% pass, 10% fail, 5% deficiency
           const rand = Math.random();
           let finalStatus: DeviceStatus = "passed";
           let logMsg = `PASS // NODE: ${targetDevice.label} VERIFIED`;
@@ -124,7 +127,7 @@ export default function Home() {
             finalStatus = "failed";
             logMsg = `CRITICAL_FAIL // NODE: ${targetDevice.label} FAILED COMPLIANCE OPERATIONAL STANDARDS`;
             toast.error("TEST FAILED", { description: `${targetDevice.label} failed operation test.` });
-          } else if (rand > 0.8) {
+          } else if (rand > 0.85) {
             finalStatus = "deficiency";
             logMsg = `WARNING // NODE: ${targetDevice.label} LOGGED MINOR DEVIATION`;
             toast.warning("DEFICIENCY LOGGED", { description: `${targetDevice.label} has minor deviations.` });
@@ -226,7 +229,7 @@ export default function Home() {
       };
 
       setQuotes(prev => prev.map(q => {
-        if (q.id === "QTE-2026-01") {
+        if (q.id === "Q-2026-1047") {
           return {
             ...q,
             items: [...q.items, newQuoteItem]
@@ -235,11 +238,59 @@ export default function Home() {
         return q;
       }));
 
-      addLog(`QUOTE_GEN // ADDED REPAIR SCOPE TO ACTIVE ESTIMATE QT-2026-00491`);
+      addLog(`QUOTE_GEN // ADDED REPAIR SCOPE TO ACTIVE ESTIMATE Q-2026-1047`);
     }
 
     addLog(`DEFICIENCY_COMMITTED // COMPLIANCE EXPORT READY FOR REGISTRY.`);
     toast.success("DEFICIENCY COMMITTED", { description: "Deficiency successfully logged and exported." });
+  };
+
+  // Approve Quote Handler
+  const handleApproveQuote = (quoteId: string) => {
+    setQuotes(prev => prev.map(q => {
+      if (q.id === quoteId) {
+        // Find devices referenced in the quote and mark them as resolved/passed
+        const deviceIdsInQuote = q.items.map(item => item.deviceId);
+        setDevices(currDevices => currDevices.map(d => {
+          if (deviceIdsInQuote.includes(d.id)) {
+            return {
+              ...d,
+              status: "passed",
+              customerNotes: "REPAIR APPROVED & VERIFIED AS RESOLVED.",
+              technicianNotes: "HARDWARE REPLACED. VERIFIED PASSING TELEMETRY."
+            };
+          }
+          return d;
+        }));
+
+        addLog(`QUOTE_APPROVED // QUOTE ${quoteId} APPROVED BY CUSTOMER. REPAIRS RESOLVED.`);
+        return { ...q, status: "Approved" };
+      }
+      return q;
+    }));
+  };
+
+  // Toggle Setup Steps
+  const handleToggleSetupStep = (stepId: number) => {
+    setSetupSteps(prev => prev.map(s => {
+      if (s.id === stepId) {
+        const nextStatus = s.status === "completed" ? "pending" : "completed";
+        addLog(`SETUP_WIZARD // TOGGLED STEP_0${s.id} -> ${nextStatus.toUpperCase()}`);
+        return { ...s, status: nextStatus };
+      }
+      return s;
+    }));
+  };
+
+  // Reset Entire Sweep Simulation Data
+  const handleResetSimulation = () => {
+    setDevices(MOCK_DEVICES);
+    setQuotes(MOCK_QUOTES);
+    setSetupSteps(MOCK_SETUP_STEPS);
+    setSelectedDeviceId(null);
+    setIsSimulating(false);
+    addLog("SYS_RESET // ALL DEVICES AND TELEMETRY LOGS FLUSHED.");
+    toast.info("DATA FLUSHED", { description: "Simulation data reset to default states." });
   };
 
   // Calculations for Dashboards
@@ -254,8 +305,110 @@ export default function Home() {
   // Render the proper active page view
   const renderActivePageContent = () => {
     switch (activePage) {
-      case "dashboard":
-        return renderDashboardView();
+      case "buildings":
+        return (
+          <BuildingsView 
+            buildings={[{
+              id: "HVA",
+              name: "Harbour View Apartments",
+              address: "1420 Harbour Front Way, Vancouver, BC",
+              occupancyType: "Residential",
+              floorsCount: 5,
+              floors: ["Parkade P1", "Main Floor", "Level 2", "Level 3", "Roof"],
+              status: "In Progress",
+              lastInspectionDate: "2025-06-14",
+              nextInspectionDue: "2026-06-14",
+              totalDevices: totalCount,
+              openDeficiencies: failedCount + warningCount,
+              criticalDeficiencies: failedCount,
+              setupProgress: 60,
+              fireAlarmType: "2-Stage Addressable",
+              lockboxLocation: "Main Lobby Vestibule",
+              fdcLocation: "North-West Corner of Building",
+              panelLocation: "Main Lobby",
+              constructionType: "Concrete High-Rise",
+              occupancyTypeDetail: "Multi-Family Residential",
+              emergencyContacts: [
+                { name: "John Doe", role: "Property Manager", phone: "604-555-0199", afterHours: false },
+                { name: "Emergency Dispatch", role: "Fire Monitoring", phone: "604-555-0100", afterHours: true }
+              ]
+            }, {
+              id: "PMB",
+              name: "Pacific Medical Center",
+              address: "750 West Broadway, Vancouver, BC",
+              occupancyType: "Medical",
+              floorsCount: 8,
+              floors: ["B1 Parkade", "Main Floor", "Level 2", "Level 3", "Level 4", "Level 5", "Level 6", "Level 7", "Level 8", "Roof"],
+              status: "Compliant",
+              lastInspectionDate: "2026-04-10",
+              nextInspectionDue: "2027-04-10",
+              totalDevices: 142,
+              openDeficiencies: 0,
+              criticalDeficiencies: 0,
+              setupProgress: 100,
+              fireAlarmType: "2-Stage Addressable",
+              lockboxLocation: "Main Lobby Vestibule",
+              fdcLocation: "West Side near Main Driveway",
+              panelLocation: "Main Lobby Desk",
+              constructionType: "Concrete High-Rise",
+              occupancyTypeDetail: "Medical Office Building",
+              emergencyContacts: [
+                { name: "Jane Smith", role: "Building Engineer", phone: "604-555-0211", afterHours: true }
+              ]
+            }, {
+              id: "RCC",
+              name: "Richmond Civic Center",
+              address: "6911 No. 3 Road, Richmond, BC",
+              occupancyType: "Municipal",
+              floorsCount: 4,
+              floors: ["Main Floor", "Level 2", "Level 3", "Level 4", "Roof"],
+              status: "Critical Deficiencies",
+              lastInspectionDate: "2025-11-20",
+              nextInspectionDue: "2026-11-20",
+              totalDevices: 95,
+              openDeficiencies: 4,
+              criticalDeficiencies: 2,
+              setupProgress: 100,
+              fireAlarmType: "Single-Stage Addressable",
+              lockboxLocation: "Main Entrance Exterior",
+              fdcLocation: "South Side near Hydrant",
+              panelLocation: "Main Lobby Vestibule",
+              constructionType: "Steel Frame & Concrete",
+              occupancyTypeDetail: "Municipal Government Offices",
+              emergencyContacts: [
+                { name: "Duty Officer", role: "Security Dispatch", phone: "604-555-0399", afterHours: true }
+              ]
+            }, {
+              id: "GBC",
+              name: "Granville Business Center",
+              address: "1055 Dunsmuir St, Vancouver, BC",
+              occupancyType: "Commercial",
+              floorsCount: 12,
+              floors: ["P1 Parkade", "P2 Parkade", "Main Lobby", "Level 2", "Level 3", "Level 4", "Level 5", "Level 6", "Level 7", "Level 8", "Level 9", "Level 10", "Level 11", "Level 12", "Roof"],
+              status: "In Progress",
+              lastInspectionDate: "2025-09-05",
+              nextInspectionDue: "2026-09-05",
+              totalDevices: 210,
+              openDeficiencies: 2,
+              criticalDeficiencies: 0,
+              setupProgress: 80,
+              fireAlarmType: "2-Stage Addressable",
+              lockboxLocation: "South-West Main Entry",
+              fdcLocation: "East Side near Loading Dock",
+              panelLocation: "Security Control Room",
+              constructionType: "Concrete High-Rise",
+              occupancyTypeDetail: "Commercial Office Tower",
+              emergencyContacts: [
+                { name: "Building Security", role: "Command Center", phone: "604-555-0911", afterHours: true }
+              ]
+            }]} 
+            onSelectBuilding={(bldId) => {
+              addLog(`BUILDING_SWITCHED // LOADED Blueprints for: ${bldId}`);
+              setActivePage("map");
+            }} 
+            activeRole={activeRole}
+          />
+        );
       case "map":
         return (
           <div className="flex-1 flex min-h-0">
@@ -269,7 +422,7 @@ export default function Home() {
                     placeholder="SEARCH_HARDWARE_TAG..." 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 bg-slate-900 border-cyan-500/20 text-cyan-400 placeholder:text-slate-600 rounded-none h-9 text-xs focus-visible:ring-cyan-500/50 uppercase"
+                    className="pl-9 bg-slate-900 border-cyan-500/20 text-cyan-400 placeholder:text-slate-600 rounded-none h-9 text-xs focus-visible:ring-cyan-500/50 uppercase animate-pulse"
                   />
                 </div>
                 
@@ -309,6 +462,16 @@ export default function Home() {
                     const matchesCat = categoryFilter === "all" || d.category === categoryFilter;
                     const matchesStatus = statusFilter === "all" || d.status === statusFilter;
                     const matchesFloor = d.floor === activeFloor;
+                    
+                    // Government Emergency Filter
+                    if (activeRole === "government") {
+                      const isEmergency = [
+                        "Fire Alarm Panel", "Annunciator", "FDC", "Sprinkler Riser", 
+                        "Lockbox", "Roof Access", "Electrical Shutoff", "Gas Shutoff", "Standpipe", "Smoke Control Panel"
+                      ].includes(d.type);
+                      return matchesSearch && matchesCat && matchesStatus && matchesFloor && isEmergency;
+                    }
+
                     return matchesSearch && matchesCat && matchesStatus && matchesFloor;
                   })
                   .map((dev) => (
@@ -331,7 +494,7 @@ export default function Home() {
                           dev.status === "passed" ? "bg-emerald-500" :
                           dev.status === "failed" ? "bg-rose-500 animate-pulse" :
                           dev.status === "deficiency" ? "bg-amber-500" :
-                          dev.status === "testing" ? "bg-cyan-500 animate-ping" :
+                          dev.status === "testing" ? "bg-cyan-500 animate-pulse" :
                           "bg-slate-700"
                         }`} />
                       </div>
@@ -350,377 +513,267 @@ export default function Home() {
               theme={theme}
             />
 
-            {/* Right Detail Panel */}
-            {selectedDeviceId && (
-              <DeviceDetailPanel 
-                device={devices.find(d => d.id === selectedDeviceId) || null}
-                onClose={() => setSelectedDeviceId(null)}
-                onUpdateStatus={handleUpdateDeviceStatus}
-                onTriggerDeficiencyModal={handleTriggerDeficiencyModal}
-                activeRole={activeRole}
-              />
-            )}
+            {/* Device Detail Panel */}
+            <DeviceDetailPanel 
+              device={devices.find(d => d.id === selectedDeviceId) || null}
+              onClose={() => setSelectedDeviceId(null)}
+              onUpdateStatus={handleUpdateDeviceStatus}
+              onTriggerDeficiencyModal={handleTriggerDeficiencyModal}
+              activeRole={activeRole}
+            />
           </div>
+        );
+      case "deficiencies":
+        return (
+          <DeficienciesView 
+            devices={devices} 
+            onSelectDevice={(id) => {
+              setSelectedDeviceId(id);
+              setActivePage("map");
+            }}
+            activeRole={activeRole}
+          />
         );
       case "reports":
         return <ReportsView reports={reports} activeRole={activeRole} />;
       case "quotes":
-        return <QuotesView quotes={quotes} activeRole={activeRole} />;
+        return <QuotesView quotes={quotes} onApproveQuote={handleApproveQuote} activeRole={activeRole} />;
       case "sharing":
-        return <MunicipalSharingView settings={sharingSettings} onUpdateSettings={(s) => setSharingSettings(s)} />;
+        return <MunicipalSharingView settings={sharingSettings} onUpdateSettings={(updated) => setSharingSettings(updated)} />;
+      case "setup":
+        return <SetupWizardView steps={setupSteps} onToggleStep={handleToggleSetupStep} activeRole={activeRole} />;
       default:
         return null;
     }
   };
 
-  // Dashboard View for Property Managers & Executives
-  const renderDashboardView = () => {
-    return (
-      <div className="flex-1 p-6 overflow-y-auto space-y-6 bg-[#02040a]/40 font-mono text-xs text-cyan-400">
-        {/* Metric Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="border border-cyan-500/15 bg-slate-950/60 p-4 flex flex-col gap-1.5 hud-corners">
-            <span className="text-[10px] text-slate-500 uppercase font-bold">Facility Compliance Rate</span>
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-3xl font-bold text-emerald-400">{compliancePercentage}%</span>
-              <span className="text-[10px] text-slate-500 uppercase">NFPA certified</span>
-            </div>
-            <div className="w-full bg-slate-900 h-1.5 border border-cyan-500/10 mt-1">
-              <div className="bg-emerald-500 h-full shadow-[0_0_8px_#10b981]" style={{ width: `${compliancePercentage}%` }} />
-            </div>
-          </div>
-
-          <div className="border border-cyan-500/15 bg-slate-950/60 p-4 flex flex-col gap-1.5 hud-corners">
-            <span className="text-[10px] text-slate-500 uppercase font-bold">Outstanding Deficiencies</span>
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-3xl font-bold text-rose-500">{failedCount + warningCount}</span>
-              <span className="text-[10px] text-slate-500 uppercase">critical fixes</span>
-            </div>
-            <span className="text-[9px] text-rose-400/80 mt-1 uppercase font-bold flex items-center gap-1">
-              <AlertTriangle className="w-3.5 h-3.5" /> REPAIRS REQUIRED FOR CERTIFICATION
-            </span>
-          </div>
-
-          <div className="border border-cyan-500/15 bg-slate-950/60 p-4 flex flex-col gap-1.5 hud-corners">
-            <span className="text-[10px] text-slate-500 uppercase font-bold">Total Tested Nodes</span>
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-3xl font-bold text-cyan-400">{testedCount}</span>
-              <span className="text-[10px] text-slate-500">/ {totalCount} total</span>
-            </div>
-            <div className="w-full bg-slate-900 h-1.5 border border-cyan-500/10 mt-1">
-              <div className="bg-cyan-500 h-full shadow-[0_0_8px_#06b6d4]" style={{ width: `${(testedCount / totalCount) * 100}%` }} />
-            </div>
-          </div>
-
-          <div className="border border-cyan-500/15 bg-slate-950/60 p-4 flex flex-col gap-1.5 hud-corners">
-            <span className="text-[10px] text-slate-500 uppercase font-bold">Municipal Registry Link</span>
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-sm font-bold text-emerald-400 uppercase">ACTIVE_SHIELD</span>
-            </div>
-            <span className="text-[9px] text-slate-500 mt-2.5 uppercase leading-relaxed">
-              EMERGENCY DATA IS CONTINUOUSLY BROADCAST TO METRO FIRE SERVICES.
-            </span>
-          </div>
-        </div>
-
-        {/* Building Emergency Profile Block */}
-        <div className="border border-cyan-500/15 bg-slate-950/60 p-5 flex flex-col gap-4 hud-corners">
-          <h3 className="font-bold text-cyan-300 text-[11px] uppercase tracking-wider flex items-center gap-2 border-b border-cyan-500/10 pb-2">
-            <Building className="w-4 h-4 text-cyan-500" />
-            <span>Facility Emergency Profile // {SAMPLE_BUILDING.name}</span>
-          </h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-3">
-              <div>
-                <span className="text-[9px] text-slate-500 uppercase font-bold">Facility Address</span>
-                <p className="text-cyan-300 font-bold mt-0.5">{SAMPLE_BUILDING.address.toUpperCase()}</p>
-              </div>
-              <div>
-                <span className="text-[9px] text-slate-500 uppercase font-bold">Construction Classification</span>
-                <p className="text-cyan-300 mt-0.5">{SAMPLE_BUILDING.constructionType.toUpperCase()}</p>
-              </div>
-              <div>
-                <span className="text-[9px] text-slate-500 uppercase font-bold">Occupancy Classification</span>
-                <p className="text-cyan-300 mt-0.5">{SAMPLE_BUILDING.occupancyType.toUpperCase()}</p>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <span className="text-[9px] text-slate-500 uppercase font-bold">Main Fire Alarm Control Panel</span>
-                <p className="text-cyan-300 mt-0.5">{SAMPLE_BUILDING.fireAlarmType.toUpperCase()}</p>
-              </div>
-              <div>
-                <span className="text-[9px] text-slate-500 uppercase font-bold">Lockbox Entry Coordinates</span>
-                <p className="text-cyan-300 mt-0.5">{SAMPLE_BUILDING.lockboxLocation.toUpperCase()}</p>
-              </div>
-              <div>
-                <span className="text-[9px] text-slate-500 uppercase font-bold">FDC Connection Outlet</span>
-                <p className="text-cyan-300 mt-0.5">{SAMPLE_BUILDING.fdcLocation.toUpperCase()}</p>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <span className="text-[9px] text-slate-500 uppercase font-bold flex items-center gap-1">
-                <PhoneCall className="w-3.5 h-3.5" /> Emergency Contacts
-              </span>
-              <div className="space-y-2 max-h-[120px] overflow-y-auto">
-                {SAMPLE_BUILDING.emergencyContacts.map((contact, i) => (
-                  <div key={i} className="bg-slate-900/40 p-2 border border-cyan-500/5 flex justify-between items-center">
-                    <div>
-                      <p className="font-bold text-cyan-300 text-[10px]">{contact.name.toUpperCase()}</p>
-                      <span className="text-[8px] text-slate-500 uppercase">{contact.role}</span>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-cyan-400 font-bold text-[10px]">{contact.phone}</p>
-                      {contact.afterHours && (
-                        <Badge className="bg-rose-950/20 text-rose-400 border-rose-500/10 text-[7px] scale-90 px-1 rounded-none py-0">24HR</Badge>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div className={`min-h-screen flex flex-col transition-colors duration-200 ${
-      theme === "light" ? "bg-slate-50 text-slate-900" : "bg-[#02040a] text-cyan-400"
-    }`}>
-      {/* SaaS Platform Header */}
-      <header className="h-16 border-b border-cyan-500/20 bg-slate-950/90 flex items-center justify-between px-6 backdrop-blur-md z-40 shrink-0 font-mono">
-        {/* Brand / Logo */}
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center relative shadow-[0_0_10px_rgba(6,182,212,0.15)]">
-            <div className="absolute inset-0.5 border border-cyan-500/10" />
-            <Flame className="w-4 h-4 text-cyan-400 animate-pulse" />
+    <div className="min-h-screen flex flex-col bg-[#050814] text-cyan-400 font-mono select-none selection:bg-cyan-500/20 selection:text-cyan-300">
+      
+      {/* Top Header Panel */}
+      <header className="h-16 border-b border-cyan-500/20 bg-slate-950/90 backdrop-blur-md px-6 flex items-center justify-between z-30 shrink-0">
+        
+        {/* Left: Branding & Portfolio Switcher */}
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-cyan-950 border border-cyan-500/40 rounded-none shadow-[0_0_10px_rgba(6,182,212,0.3)] animate-pulse">
+              <Shield className="w-5 h-5 text-cyan-400" />
+            </div>
+            <div>
+              <h1 className="text-sm font-bold tracking-widest text-cyan-300 uppercase leading-none">INSPECTRA_VISUAL</h1>
+              <span className="text-[9px] text-slate-500 tracking-wider uppercase font-bold mt-1 block">LIFE-SAFETY_MAPPING_OS</span>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xs font-bold tracking-widest text-cyan-300 uppercase leading-none">INSPECTRA_VISUAL_MAP</h1>
-            <span className="text-[8px] text-slate-500 uppercase tracking-widest mt-1 block">Life-Safety Mapping SaaS Demo</span>
+
+          {/* Building Portfolio Badge */}
+          <div className="h-8 w-px bg-cyan-500/10 hidden sm:block" />
+          <div className="hidden sm:flex items-center gap-2 bg-slate-900/50 border border-cyan-500/10 px-3 py-1.5">
+            <Building className="w-4 h-4 text-cyan-500" />
+            <div className="text-left">
+              <span className="text-[8px] text-slate-500 uppercase leading-none font-bold block">ACTIVE_BUILDING:</span>
+              <span className="text-[10px] text-cyan-300 font-bold uppercase leading-none">HARBOUR VIEW APARTMENTS</span>
+            </div>
           </div>
         </div>
 
-        {/* Dynamic Floor Selector (Only visible on Map View) */}
-        {activePage === "map" && (
-          <div className="hidden md:flex items-center gap-1.5">
-            {FLOORS.map((floor) => (
-              <Button
-                key={floor}
-                variant="ghost"
-                onClick={() => setActiveFloor(floor)}
-                className={`h-8 rounded-none text-[10px] font-bold uppercase tracking-wider px-3 border ${
-                  activeFloor === floor 
-                    ? "bg-cyan-500/10 border-cyan-500 text-cyan-300" 
-                    : "border-cyan-500/10 text-slate-500 hover:text-cyan-400 hover:bg-cyan-500/5"
-                }`}
-              >
-                {floor}
-              </Button>
-            ))}
+        {/* Center-Right: Quick Counters */}
+        <div className="hidden lg:flex items-center gap-4 text-[10px]">
+          <div className="bg-slate-900/30 border border-cyan-500/10 px-3 py-1 text-center min-w-[80px]">
+            <span className="text-slate-500 text-[8px] uppercase font-bold block">DEVICES</span>
+            <span className="text-cyan-300 font-bold text-sm">{totalCount}</span>
           </div>
-        )}
+          <div className="bg-slate-900/30 border border-cyan-500/10 px-3 py-1 text-center min-w-[80px]">
+            <span className="text-slate-500 text-[8px] uppercase font-bold block">TESTED</span>
+            <span className="text-cyan-300 font-bold text-sm">{testedCount}</span>
+          </div>
+          <div className="bg-slate-900/30 border border-cyan-500/10 px-3 py-1 text-center min-w-[80px]">
+            <span className="text-slate-500 text-[8px] uppercase font-bold block">COMPLIANCE</span>
+            <span className={`font-bold text-sm ${compliancePercentage > 90 ? 'text-emerald-400' : 'text-amber-400'}`}>
+              {compliancePercentage}%
+            </span>
+          </div>
+        </div>
 
-        {/* Global Controls & Theme Toggle */}
-        <div className="flex items-center gap-4">
-          {/* Theme Toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-            className="h-8 w-8 rounded-none text-slate-500 hover:text-cyan-400 hover:bg-cyan-500/5 border border-cyan-500/10"
+        {/* Right Side: Role Selector, Floor dropdown, Theme, Sweep */}
+        <div className="flex items-center gap-3">
+          
+          {/* Floor selector (only visible on map view) */}
+          {activePage === "map" && (
+            <select 
+              value={activeFloor} 
+              onChange={(e) => setActiveFloor(e.target.value)}
+              className="bg-slate-900 border border-cyan-500/30 px-3 py-1.5 text-xs text-cyan-400 font-mono rounded-none uppercase focus:ring-cyan-500/40"
+            >
+              {FLOORS.map(f => <option key={f} value={f}>{f.toUpperCase()}</option>)}
+            </select>
+          )}
+
+          {/* Role selector dropdown */}
+          <div className="flex items-center gap-1.5 bg-slate-900/50 border border-cyan-500/20 px-2 py-1.5">
+            <User className="w-3.5 h-3.5 text-cyan-500" />
+            <select 
+              value={activeRole} 
+              onChange={(e) => {
+                setActiveRole(e.target.value);
+                addLog(`ROLE_CHANGED // SWITCHED TO: ${e.target.value.toUpperCase()}`);
+                toast.info("ROLE SWITCHED", { description: `Operating as ${e.target.value.replace("_", " ")}.` });
+              }}
+              className="bg-transparent border-none text-[10px] text-cyan-400 font-mono rounded-none uppercase focus:ring-0 focus-visible:ring-0 p-0"
+            >
+              <option value="fire_company">Fire Company</option>
+              <option value="property_manager">Property Manager</option>
+              <option value="government">Government / FD</option>
+            </select>
+          </div>
+
+          {/* Theme toggle */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setTheme(prev => prev === "light" ? "dark" : "light")}
+            className="h-9 w-9 rounded-none border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/10"
           >
             {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
           </Button>
 
-          {/* Dynamic Sweep Trigger (Fire Company View only) */}
-          {activeRole === "fire_company" && activePage === "map" && (
-            <Button
+          {/* Sweep Trigger (only visible on map view for fire_company) */}
+          {activePage === "map" && activeRole === "fire_company" && (
+            <Button 
               onClick={() => setIsSimulating(!isSimulating)}
-              className={`h-8 rounded-none text-[10px] font-bold px-4 border uppercase tracking-wider flex items-center gap-1.5 transition-all ${
+              className={`h-9 rounded-none text-xs font-bold px-4 flex items-center gap-2 ${
                 isSimulating 
-                  ? "bg-rose-950/40 border-rose-500 text-rose-400 animate-pulse shadow-[0_0_10px_rgba(244,63,94,0.2)]" 
-                  : "bg-cyan-950/40 border-cyan-500 text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.15)]"
+                  ? "bg-rose-950/60 hover:bg-rose-900 border border-rose-500 text-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.3)] animate-pulse" 
+                  : "bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-500 text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.3)]"
               }`}
             >
-              {isSimulating ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-              <span>{isSimulating ? "HALT_SWEEP" : "RUN_SWEEP"}</span>
+              {isSimulating ? <Pause className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+              <span>{isSimulating ? "STOP_SWEEP" : "RUN_SWEEP"}</span>
             </Button>
           )}
 
-          {/* Role Switching Control */}
-          <div className="flex items-center gap-1.5 bg-slate-900/60 p-1 border border-cyan-500/10">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setActiveRole("fire_company");
-                addLog("ROLE_SWAP // SWITCHED TO FIRE PROTECTION COMPANY CONSOLE.");
-                toast.success("ROLE UPDATED", { description: "Switched to Fire Protection Company view." });
-              }}
-              className={`h-7 rounded-none text-[9px] font-bold px-2.5 uppercase flex items-center gap-1 ${
-                activeRole === "fire_company" 
-                  ? "bg-cyan-500/10 text-cyan-300 border border-cyan-500/30" 
-                  : "text-slate-500 hover:text-cyan-400"
-              }`}
-            >
-              <User className="w-3 h-3" /> TECH
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setActiveRole("property_manager");
-                addLog("ROLE_SWAP // SWITCHED TO PROPERTY MANAGER DASHBOARD.");
-                toast.success("ROLE UPDATED", { description: "Switched to Property Manager view." });
-              }}
-              className={`h-7 rounded-none text-[9px] font-bold px-2.5 uppercase flex items-center gap-1 ${
-                activeRole === "property_manager" 
-                  ? "bg-cyan-500/10 text-cyan-300 border border-cyan-500/30" 
-                  : "text-slate-500 hover:text-cyan-400"
-              }`}
-            >
-              <Building className="w-3 h-3" /> MANAGER
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setActiveRole("government");
-                addLog("ROLE_SWAP // SWITCHED TO EMERGENCY RESPONDER / FIRE DEPT VIEW.");
-                toast.success("ROLE UPDATED", { description: "Switched to Fire Department view." });
-              }}
-              className={`h-7 rounded-none text-[9px] font-bold px-2.5 uppercase flex items-center gap-1 ${
-                activeRole === "government" 
-                  ? "bg-fuchsia-500/15 text-fuchsia-400 border border-fuchsia-500/40 shadow-[0_0_10px_rgba(217,70,239,0.15)]" 
-                  : "text-slate-500 hover:text-cyan-400"
-              }`}
-            >
-              <GovIcon className="w-3 h-3 text-fuchsia-400" /> FIRE_DEPT
-            </Button>
-          </div>
+          {/* Master Reset Button */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={handleResetSimulation}
+            className="h-9 w-9 rounded-none border border-cyan-500/20 text-slate-500 hover:text-cyan-400 hover:bg-cyan-500/10"
+            title="Reset Simulation Data"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </Button>
         </div>
       </header>
 
-      {/* Main Workspace Frame */}
+      {/* Main Workspace Grid */}
       <div className="flex-1 flex min-h-0 relative">
-        {/* Left Vertical HUD Navigation */}
-        <nav className="w-16 border-r border-cyan-500/20 bg-slate-950/90 flex flex-col items-center py-4 shrink-0 font-mono gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setActivePage("dashboard")}
-            className={`h-10 w-10 rounded-none border ${
-              activePage === "dashboard" 
-                ? "bg-cyan-500/10 border-cyan-500 text-cyan-300" 
-                : "border-transparent text-slate-500 hover:text-cyan-400"
-            }`}
-            title="Dashboard Overview"
+        
+        {/* Navigation Sidebar */}
+        <aside className="w-16 border-r border-cyan-500/20 bg-slate-950/95 flex flex-col items-center py-4 gap-4 z-20 shrink-0">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setActivePage("buildings")}
+            className={`h-10 w-10 rounded-none border ${activePage === "buildings" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
+            title="Buildings Portfolio"
           >
-            <LayoutDashboard className="w-5 h-5" />
+            <Building className="w-5 h-5" />
           </Button>
 
-          <Button
-            variant="ghost"
-            size="icon"
+          <Button 
+            variant="ghost" 
+            size="icon" 
             onClick={() => setActivePage("map")}
-            className={`h-10 w-10 rounded-none border ${
-              activePage === "map" 
-                ? "bg-cyan-500/10 border-cyan-500 text-cyan-300" 
-                : "border-transparent text-slate-500 hover:text-cyan-400"
-            }`}
+            className={`h-10 w-10 rounded-none border ${activePage === "map" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
             title="Visual Site Map"
           >
             <MapIcon className="w-5 h-5" />
           </Button>
 
-          <Button
-            variant="ghost"
-            size="icon"
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setActivePage("deficiencies")}
+            className={`h-10 w-10 rounded-none border ${activePage === "deficiencies" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
+            title="Deficiencies Registry"
+          >
+            <AlertTriangle className="w-5 h-5" />
+          </Button>
+
+          <Button 
+            variant="ghost" 
+            size="icon" 
             onClick={() => setActivePage("reports")}
-            className={`h-10 w-10 rounded-none border ${
-              activePage === "reports" 
-                ? "bg-cyan-500/10 border-cyan-500 text-cyan-300" 
-                : "border-transparent text-slate-500 hover:text-cyan-400"
-            }`}
+            className={`h-10 w-10 rounded-none border ${activePage === "reports" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
             title="Compliance Reports"
           >
             <FileText className="w-5 h-5" />
           </Button>
 
-          <Button
-            variant="ghost"
-            size="icon"
+          <Button 
+            variant="ghost" 
+            size="icon" 
             onClick={() => setActivePage("quotes")}
-            className={`h-10 w-10 rounded-none border ${
-              activePage === "quotes" 
-                ? "bg-cyan-500/10 border-cyan-500 text-cyan-300" 
-                : "border-transparent text-slate-500 hover:text-cyan-400"
-            }`}
-            title="Deficiency Quotes"
+            className={`h-10 w-10 rounded-none border ${activePage === "quotes" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
+            title="Repair Quotes"
           >
             <DollarSign className="w-5 h-5" />
           </Button>
 
-          <Button
-            variant="ghost"
-            size="icon"
+          <Button 
+            variant="ghost" 
+            size="icon" 
             onClick={() => setActivePage("sharing")}
-            className={`h-10 w-10 rounded-none border ${
-              activePage === "sharing" 
-                ? "bg-cyan-500/10 border-cyan-500 text-cyan-300" 
-                : "border-transparent text-slate-500 hover:text-cyan-400"
-            }`}
-            title="Municipal Sharing"
+            className={`h-10 w-10 rounded-none border ${activePage === "sharing" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
+            title="Municipal Data Sharing"
           >
             <ShieldCheck className="w-5 h-5" />
           </Button>
-        </nav>
 
-        {/* Primary Page Panel View */}
-        <div className="flex-1 flex flex-col min-h-0">
-          {renderActivePageContent()}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setActivePage("setup")}
+            className={`h-10 w-10 rounded-none border ${activePage === "setup" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
+            title="Setup/Onboarding Wizard"
+          >
+            <Settings className="w-5 h-5" />
+          </Button>
+        </aside>
 
-          {/* Bottom Telemetry Terminal Logger (Visible on Map View only) */}
-          {activePage === "map" && (
-            <div className="h-32 border-t border-cyan-500/20 bg-slate-950/95 p-3.5 font-mono text-[9px] text-cyan-500 flex flex-col gap-1.5 overflow-hidden shrink-0">
-              <span className="text-[8px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-1">
-                <Radio className="w-3 h-3 text-cyan-500/60 animate-pulse" /> TELEMETRY_LOGGER_STREAM
-              </span>
-              <div className="flex-1 overflow-y-auto space-y-1 pr-2 select-text selection:bg-cyan-500/20">
-                {terminalLogs.map((log, i) => (
-                  <div key={i} className="leading-relaxed font-semibold">
-                    {log}
-                  </div>
-                ))}
-                <div ref={terminalEndRef} />
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Dynamic View Workspace Content */}
+        {renderActivePageContent()}
       </div>
 
-      {/* Guided Onboarding Walkthrough */}
-      <DemoWalkthrough 
-        activeRole={activeRole}
-        setActiveRole={setActiveRole}
-        setPage={setActivePage}
-      />
+      {/* Scrolling Command-Line Telemetry Feed Footer */}
+      <footer className="h-16 border-t border-cyan-500/20 bg-slate-950/95 px-6 flex items-center gap-4 shrink-0 font-mono text-[10px] z-30">
+        <span className="text-slate-500 font-bold uppercase shrink-0">TELEMETRY_LOGS //</span>
+        <div className="flex-1 h-10 overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-cyan-500/20">
+          {terminalLogs.map((log, i) => (
+            <div key={i} className="text-cyan-500/80 leading-tight">
+              {log}
+            </div>
+          ))}
+          <div ref={terminalEndRef} />
+        </div>
+      </footer>
 
-      {/* Deficiency Form Dialog */}
+      {/* Deficiency Form Dialog Modal */}
       <DeficiencyModal 
         isOpen={isDeficiencyModalOpen}
         onClose={() => setIsDeficiencyModalOpen(false)}
-        device={devices.find(d => d.id === selectedDeviceId) || null}
-        isFailureMode={deficiencyModalIsFailure}
         onSave={handleSaveDeficiency}
+        isFailureMode={deficiencyModalIsFailure}
+        device={devices.find(d => d.id === selectedDeviceId) || null}
+      />
+
+      {/* Guided Interactive Demo Walkthrough Cockpit */}
+      <DemoWalkthrough 
+        activeRole={activeRole}
+        setActiveRole={(role) => {
+          setActiveRole(role);
+          addLog(`ROLE_CHANGED // SWITCHED TO: ${role.toUpperCase()}`);
+        }}
+        setPage={(page) => setActivePage(page)}
       />
     </div>
   );

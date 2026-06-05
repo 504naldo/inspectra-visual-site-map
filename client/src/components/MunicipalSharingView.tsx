@@ -18,7 +18,7 @@ export default function MunicipalSharingView({ settings, onUpdateSettings }: Mun
     const updated = { ...settings, [key]: val };
     onUpdateSettings(updated);
     toast.success("PRIVACY POLICY MODIFIED", {
-      description: `UPDATED ACCESS FOR: ${key.replace("share", "").toUpperCase()}`
+      description: `UPDATED ACCESS FOR: ${key.toUpperCase()}`
     });
   };
 
@@ -71,8 +71,8 @@ export default function MunicipalSharingView({ settings, onUpdateSettings }: Mun
               </div>
               <Switch 
                 id="s-fsp" 
-                checked={settings.shareFireSafetyPlan} 
-                onCheckedChange={(val) => handleToggle("shareFireSafetyPlan", val)}
+                checked={settings.fireSafetyPlan} 
+                onCheckedChange={(val) => handleToggle("fireSafetyPlan", val)}
                 className="data-[state=checked]:bg-cyan-500"
               />
             </div>
@@ -84,8 +84,8 @@ export default function MunicipalSharingView({ settings, onUpdateSettings }: Mun
               </div>
               <Switch 
                 id="s-fdc" 
-                checked={settings.shareFdcLocation} 
-                onCheckedChange={(val) => handleToggle("shareFdcLocation", val)}
+                checked={settings.fdcLocation} 
+                onCheckedChange={(val) => handleToggle("fdcLocation", val)}
                 className="data-[state=checked]:bg-cyan-500"
               />
             </div>
@@ -97,8 +97,8 @@ export default function MunicipalSharingView({ settings, onUpdateSettings }: Mun
               </div>
               <Switch 
                 id="s-facp" 
-                checked={settings.shareFireAlarmPanelLocation} 
-                onCheckedChange={(val) => handleToggle("shareFireAlarmPanelLocation", val)}
+                checked={settings.fireAlarmPanelLocation} 
+                onCheckedChange={(val) => handleToggle("fireAlarmPanelLocation", val)}
                 className="data-[state=checked]:bg-cyan-500"
               />
             </div>
@@ -110,8 +110,8 @@ export default function MunicipalSharingView({ settings, onUpdateSettings }: Mun
               </div>
               <Switch 
                 id="s-ann" 
-                checked={settings.shareAnnunciatorLocation} 
-                onCheckedChange={(val) => handleToggle("shareAnnunciatorLocation", val)}
+                checked={settings.annunciatorLocation} 
+                onCheckedChange={(val) => handleToggle("annunciatorLocation", val)}
                 className="data-[state=checked]:bg-cyan-500"
               />
             </div>
@@ -123,8 +123,8 @@ export default function MunicipalSharingView({ settings, onUpdateSettings }: Mun
               </div>
               <Switch 
                 id="s-spr" 
-                checked={settings.shareSprinklerRiserRoom} 
-                onCheckedChange={(val) => handleToggle("shareSprinklerRiserRoom", val)}
+                checked={settings.sprinklerRiserRoom} 
+                onCheckedChange={(val) => handleToggle("sprinklerRiserRoom", val)}
                 className="data-[state=checked]:bg-cyan-500"
               />
             </div>
@@ -136,8 +136,8 @@ export default function MunicipalSharingView({ settings, onUpdateSettings }: Mun
               </div>
               <Switch 
                 id="s-crit" 
-                checked={settings.shareCriticalDeficiencies} 
-                onCheckedChange={(val) => handleToggle("shareCriticalDeficiencies", val)}
+                checked={settings.criticalDeficiencies} 
+                onCheckedChange={(val) => handleToggle("criticalDeficiencies", val)}
                 className="data-[state=checked]:bg-cyan-500"
               />
             </div>
@@ -159,8 +159,8 @@ export default function MunicipalSharingView({ settings, onUpdateSettings }: Mun
               </div>
               <Switch 
                 id="p-quote" 
-                checked={settings.shareQuotePricing} 
-                onCheckedChange={(val) => handleToggle("shareQuotePricing", val)}
+                checked={settings.quotePricing} 
+                onCheckedChange={(val) => handleToggle("quotePricing", val)}
                 className="data-[state=checked]:bg-cyan-500"
               />
             </div>
@@ -172,8 +172,8 @@ export default function MunicipalSharingView({ settings, onUpdateSettings }: Mun
               </div>
               <Switch 
                 id="p-tech" 
-                checked={settings.shareTechnicianNotes} 
-                onCheckedChange={(val) => handleToggle("shareTechnicianNotes", val)}
+                checked={settings.internalNotes} 
+                onCheckedChange={(val) => handleToggle("internalNotes", val)}
                 className="data-[state=checked]:bg-cyan-500"
               />
             </div>
@@ -185,8 +185,8 @@ export default function MunicipalSharingView({ settings, onUpdateSettings }: Mun
               </div>
               <Switch 
                 id="p-bill" 
-                checked={settings.shareCustomerBilling} 
-                onCheckedChange={(val) => handleToggle("shareCustomerBilling", val)}
+                checked={settings.customerBillingDetails} 
+                onCheckedChange={(val) => handleToggle("customerBillingDetails", val)}
                 className="data-[state=checked]:bg-cyan-500"
               />
             </div>
@@ -198,8 +198,8 @@ export default function MunicipalSharingView({ settings, onUpdateSettings }: Mun
               </div>
               <Switch 
                 id="p-photo" 
-                checked={settings.sharePrivatePhotos} 
-                onCheckedChange={(val) => handleToggle("sharePrivatePhotos", val)}
+                checked={settings.privatePhotos} 
+                onCheckedChange={(val) => handleToggle("privatePhotos", val)}
                 className="data-[state=checked]:bg-cyan-500"
               />
             </div>
@@ -211,8 +211,8 @@ export default function MunicipalSharingView({ settings, onUpdateSettings }: Mun
               </div>
               <Switch 
                 id="p-draft" 
-                checked={settings.shareDraftReports} 
-                onCheckedChange={(val) => handleToggle("shareDraftReports", val)}
+                checked={settings.draftReports} 
+                onCheckedChange={(val) => handleToggle("draftReports", val)}
                 className="data-[state=checked]:bg-cyan-500"
               />
             </div>

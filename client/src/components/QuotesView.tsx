@@ -3,24 +3,25 @@ import { Quote, QuoteItem } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { DollarSign, Check, FileCheck, ClipboardList, Send, Trash2 } from "lucide-react";
+import { DollarSign, Check, FileCheck, ClipboardList, Send, XCircle, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface QuotesViewProps {
   quotes: Quote[];
   onApproveQuote?: (id: string) => void;
   onSendQuote?: (id: string) => void;
+  onDeclineQuote?: (id: string) => void;
   activeRole: string;
 }
 
-export default function QuotesView({ quotes, onApproveQuote, onSendQuote, activeRole }: QuotesViewProps) {
+export default function QuotesView({ quotes, onApproveQuote, onSendQuote, onDeclineQuote, activeRole }: QuotesViewProps) {
   
   const handleApprove = (quoteId: string, quoteNum: string) => {
     if (onApproveQuote) {
       onApproveQuote(quoteId);
     } else {
       toast.success("QUOTE APPROVED", {
-        description: `QUOTE ${quoteNum} SIGNED AND CONVERTED TO SERVICE ORDER.`
+        description: `QUOTE ${quoteNum} SIGNED AND CONVERTED TO ACTIVE WORK ORDER.`
       });
     }
   };
@@ -30,20 +31,38 @@ export default function QuotesView({ quotes, onApproveQuote, onSendQuote, active
       onSendQuote(quoteId);
     } else {
       toast.success("QUOTE SENT", {
-        description: `QUOTE ${quoteNum} SENT TO CUSTOMER PORTAL.`
+        description: `QUOTE ${quoteNum} TRANSMITTED TO CUSTOMER PORTAL.`
       });
     }
   };
 
+  const handleDecline = (quoteId: string, quoteNum: string) => {
+    if (onDeclineQuote) {
+      onDeclineQuote(quoteId);
+    } else {
+      toast.error("QUOTE DECLINED", {
+        description: `QUOTE ${quoteNum} HAS BEEN MARKED AS DECLINED.`
+      });
+    }
+  };
+
+  const handleClarification = (quoteNum: string) => {
+    toast.info("CLARIFICATION REQUESTED", {
+      description: `SUBMITTED ENQUIRY REGARDING QUOTE ${quoteNum} TO FIELD DISPATCH.`
+    });
+  };
+
   const getStatusBadge = (status: Quote["status"]) => {
     switch (status) {
-      case "draft":
+      case "Draft":
         return <Badge className="bg-slate-900 text-slate-400 border-slate-700 rounded-none text-[9px] font-bold">DRAFT</Badge>;
-      case "sent":
-        return <Badge className="bg-cyan-950/40 text-cyan-400 border-cyan-500/30 rounded-none text-[9px] font-bold animate-pulse">AWAITING_APPROVAL</Badge>;
-      case "approved":
-        return <Badge className="bg-emerald-950/40 text-emerald-400 border-emerald-500/30 rounded-none text-[9px] font-bold">APPROVED_WORK_ORDER</Badge>;
-      case "declined":
+      case "Sent":
+        return <Badge className="bg-blue-950/40 text-blue-400 border-blue-500/30 rounded-none text-[9px] font-bold">SENT TO CLIENT</Badge>;
+      case "Awaiting Approval":
+        return <Badge className="bg-amber-950/40 text-amber-400 border-amber-500/30 rounded-none text-[9px] font-bold animate-pulse">AWAITING APPROVAL</Badge>;
+      case "Approved":
+        return <Badge className="bg-emerald-950/40 text-emerald-400 border-emerald-500/30 rounded-none text-[9px] font-bold">APPROVED</Badge>;
+      case "Declined":
         return <Badge className="bg-rose-950/40 text-rose-400 border-rose-500/30 rounded-none text-[9px] font-bold">DECLINED</Badge>;
     }
   };
@@ -81,11 +100,11 @@ export default function QuotesView({ quotes, onApproveQuote, onSendQuote, active
                   <div className="flex items-center gap-3">
                     <span className="font-bold text-cyan-300 text-sm">{quote.quoteNumber}</span>
                     <span className="text-slate-500">//</span>
-                    <span className="text-slate-400 uppercase text-[10px]">{quote.customerSite}</span>
+                    <span className="text-slate-300 uppercase text-[10px]">{quote.buildingName}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     {getStatusBadge(quote.status)}
-                    <span className="text-[10px] text-slate-500">{quote.createdAt}</span>
+                    <span className="text-[10px] text-slate-500">{quote.createdDate}</span>
                   </div>
                 </div>
 
@@ -147,7 +166,7 @@ export default function QuotesView({ quotes, onApproveQuote, onSendQuote, active
 
                 {/* Actions Panel */}
                 <div className="flex justify-end gap-2.5 border-t border-cyan-500/10 pt-4">
-                  {activeRole === "fire_company" && quote.status === "draft" && (
+                  {activeRole === "fire_company" && quote.status === "Draft" && (
                     <Button 
                       onClick={() => handleSend(quote.id, quote.quoteNumber)}
                       className="bg-cyan-950 hover:bg-cyan-900 border border-cyan-500 text-cyan-400 rounded-none text-xs font-bold gap-1.5 h-9"
@@ -156,13 +175,27 @@ export default function QuotesView({ quotes, onApproveQuote, onSendQuote, active
                     </Button>
                   )}
 
-                  {activeRole === "property_manager" && quote.status === "sent" && (
-                    <Button 
-                      onClick={() => handleApprove(quote.id, quote.quoteNumber)}
-                      className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 rounded-none text-xs font-bold gap-1.5 h-9 shadow-[0_0_15px_rgba(16,185,129,0.3)]"
-                    >
-                      <FileCheck className="w-4 h-4" /> SIGN_&_APPROVE_REPAIRS
-                    </Button>
+                  {activeRole === "property_manager" && quote.status === "Awaiting Approval" && (
+                    <>
+                      <Button 
+                        onClick={() => handleClarification(quote.quoteNumber)}
+                        className="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 rounded-none text-xs font-bold gap-1.5 h-9"
+                      >
+                        <HelpCircle className="w-4 h-4" /> REQUEST CLARIFICATION
+                      </Button>
+                      <Button 
+                        onClick={() => handleDecline(quote.id, quote.quoteNumber)}
+                        className="bg-slate-900 hover:bg-rose-950/20 border border-rose-500/40 text-rose-400 rounded-none text-xs font-bold gap-1.5 h-9"
+                      >
+                        <XCircle className="w-4 h-4" /> DECLINE
+                      </Button>
+                      <Button 
+                        onClick={() => handleApprove(quote.id, quote.quoteNumber)}
+                        className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 rounded-none text-xs font-bold gap-1.5 h-9 shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                      >
+                        <FileCheck className="w-4 h-4" /> SIGN & APPROVE REPAIRS
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>

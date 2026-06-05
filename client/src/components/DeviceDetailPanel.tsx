@@ -71,7 +71,7 @@ export default function DeviceDetailPanel({
       case "deficiency":
         return <Badge className="bg-amber-950/50 text-amber-400 border-amber-500/30 rounded-none text-[9px] font-bold">DEFICIENCY</Badge>;
       case "testing":
-        return <Badge className="bg-cyan-950/50 text-cyan-400 border-cyan-500/30 rounded-none text-[9px] font-bold">TESTING</Badge>;
+        return <Badge className="bg-cyan-950/50 text-cyan-400 border-cyan-500/30 rounded-none text-[9px] font-bold animate-pulse">TESTING</Badge>;
       case "no_access":
         return <Badge className="bg-slate-900 text-slate-400 border-slate-700 rounded-none text-[9px] font-bold">NO_ACCESS</Badge>;
       default:
@@ -134,7 +134,7 @@ export default function DeviceDetailPanel({
             <span>CUSTOMER_SHARED_NOTES</span>
             <Badge className="bg-cyan-950/20 text-cyan-400 border-cyan-500/10 text-[8px] scale-90 py-0 px-1 rounded-none">PUBLIC</Badge>
           </div>
-          <p className="text-slate-300 text-[10px] bg-slate-900/30 p-2 border border-cyan-500/5 leading-relaxed">
+          <p className="text-slate-300 text-[10px] bg-slate-900/30 p-2 border border-cyan-500/5 leading-relaxed uppercase">
             {device.customerNotes || "NO SHARED NOTES LOGGED FOR THIS NODE."}
           </p>
         </div>
@@ -145,9 +145,9 @@ export default function DeviceDetailPanel({
             <div className="flex items-center gap-1.5 text-[9px] text-rose-400/80 font-bold">
               <EyeOff className="w-3.5 h-3.5 text-rose-500" />
               <span>TECHNICIAN_INTERNAL_NOTES</span>
-              <Badge className="bg-rose-950/20 text-rose-400 border-rose-500/10 text-[8px] scale-90 py-0 px-1 rounded-none">INTERNAL_ONLY</Badge>
+              <Badge className="bg-rose-950/20 text-rose-400 border-rose-500/10 text-[8px] scale-90 py-0 px-1 rounded-none font-bold">INTERNAL_ONLY</Badge>
             </div>
-            <p className="text-rose-300/90 text-[10px] bg-rose-950/10 p-2 border border-rose-500/10 leading-relaxed">
+            <p className="text-rose-300/90 text-[10px] bg-rose-950/10 p-2 border border-rose-500/10 leading-relaxed uppercase">
               {device.technicianNotes || "NO INTERNAL TECHNICIAN TELEMETRY LOGGED."}
             </p>
           </div>

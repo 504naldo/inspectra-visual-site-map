@@ -10,13 +10,14 @@ interface ReportsViewProps {
   reports: Report[];
   onAddReport?: () => void;
   activeRole: string;
+  onViewReport?: (report: Report) => void;
 }
 
-export default function ReportsView({ reports, onAddReport, activeRole }: ReportsViewProps) {
+export default function ReportsView({ reports, onAddReport, activeRole, onViewReport }: ReportsViewProps) {
   
-  const handleExportPDF = (reportTitle: string) => {
+  const handleExportPDF = (reportNumber: string) => {
     toast.success("PDF EXPORT SUCCESSFUL", {
-      description: `DOWNLOADED: ${reportTitle.toUpperCase()}.PDF`
+      description: `DOWNLOADED REPORT: ${reportNumber}.PDF`
     });
   };
 
@@ -28,13 +29,13 @@ export default function ReportsView({ reports, onAddReport, activeRole }: Report
 
   const getStatusBadge = (status: Report["status"]) => {
     switch (status) {
-      case "draft":
+      case "Draft":
         return <Badge className="bg-slate-900 text-slate-400 border-slate-700 rounded-none text-[9px] font-bold">DRAFT</Badge>;
-      case "ready_for_review":
-        return <Badge className="bg-amber-950/40 text-amber-400 border-amber-500/30 rounded-none text-[9px] font-bold animate-pulse">PENDING_REVIEW</Badge>;
-      case "sent":
-        return <Badge className="bg-cyan-950/40 text-cyan-400 border-cyan-500/30 rounded-none text-[9px] font-bold">TRANSMITTED</Badge>;
-      case "approved":
+      case "Ready for Review":
+        return <Badge className="bg-amber-950/40 text-amber-400 border-amber-500/30 rounded-none text-[9px] font-bold animate-pulse">READY FOR REVIEW</Badge>;
+      case "Sent":
+        return <Badge className="bg-cyan-950/40 text-cyan-400 border-cyan-500/30 rounded-none text-[9px] font-bold">SENT TO PM</Badge>;
+      case "Approved":
         return <Badge className="bg-emerald-950/40 text-emerald-400 border-emerald-500/30 rounded-none text-[9px] font-bold">APPROVED</Badge>;
     }
   };
@@ -66,8 +67,9 @@ export default function ReportsView({ reports, onAddReport, activeRole }: Report
         <Table className="font-mono text-xs">
           <TableHeader className="bg-slate-900/50">
             <TableRow className="border-b border-cyan-500/15 hover:bg-transparent">
-              <TableHead className="text-cyan-500/70 font-bold text-[10px] uppercase">Report Title</TableHead>
-              <TableHead className="text-cyan-500/70 font-bold text-[10px] uppercase">Type</TableHead>
+              <TableHead className="text-cyan-500/70 font-bold text-[10px] uppercase">Report Number</TableHead>
+              <TableHead className="text-cyan-500/70 font-bold text-[10px] uppercase">Building Site</TableHead>
+              <TableHead className="text-cyan-500/70 font-bold text-[10px] uppercase">Systems Inspected</TableHead>
               <TableHead className="text-cyan-500/70 font-bold text-[10px] uppercase">Date Generated</TableHead>
               <TableHead className="text-cyan-500/70 font-bold text-[10px] uppercase">Tested Nodes</TableHead>
               <TableHead className="text-cyan-500/70 font-bold text-[10px] uppercase">Deficiencies</TableHead>
@@ -81,14 +83,20 @@ export default function ReportsView({ reports, onAddReport, activeRole }: Report
                 <TableCell className="font-bold text-cyan-300 py-3.5">
                   <div className="flex items-center gap-2">
                     <FileText className="w-4 h-4 text-cyan-500/60" />
-                    <span>{report.title.toUpperCase()}</span>
+                    <span>{report.reportNumber}</span>
                   </div>
                 </TableCell>
-                <TableCell className="text-slate-400 uppercase text-[10px]">{report.type.replace("_", " ")}</TableCell>
+                <TableCell className="text-slate-300 font-medium">
+                  <div>{report.buildingName}</div>
+                  <div className="text-[9px] text-slate-500 uppercase">{report.address}</div>
+                </TableCell>
+                <TableCell className="text-slate-400 uppercase text-[10px]">
+                  {report.systemsInspected.join(", ")}
+                </TableCell>
                 <TableCell className="text-slate-400">{report.date}</TableCell>
-                <TableCell className="text-cyan-400 font-bold">{report.devicesTested} / 19</TableCell>
+                <TableCell className="text-cyan-400 font-bold">{report.devicesTested}</TableCell>
                 <TableCell className={`font-bold ${report.deficienciesFound > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                  {report.deficienciesFound}
+                  {report.deficienciesFound} {report.criticalDeficiencies > 0 && <span className="text-[9px] text-rose-500 font-bold animate-pulse">({report.criticalDeficiencies} CRIT)</span>}
                 </TableCell>
                 <TableCell>{getStatusBadge(report.status)}</TableCell>
                 <TableCell className="text-right py-2">
@@ -96,14 +104,24 @@ export default function ReportsView({ reports, onAddReport, activeRole }: Report
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      onClick={() => handleExportPDF(report.title)}
+                      onClick={() => onViewReport && onViewReport(report)}
                       className="h-7 w-7 rounded-none text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10" 
-                      title="Preview / Export PDF"
+                      title="View / Preview Report"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                    </Button>
+
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => handleExportPDF(report.reportNumber)}
+                      className="h-7 w-7 rounded-none text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10" 
+                      title="Export PDF"
                     >
                       <Download className="w-3.5 h-3.5" />
                     </Button>
                     
-                    {activeRole === "fire_company" && report.status === "ready_for_review" && (
+                    {activeRole === "fire_company" && report.status === "Ready for Review" && (
                       <Button 
                         variant="ghost" 
                         size="icon" 
@@ -128,7 +146,7 @@ export default function ReportsView({ reports, onAddReport, activeRole }: Report
           <CheckCircle2 className="w-3.5 h-3.5" /> COMPLIANCE_EXPORT_PREFERENCE_ENGINE
         </h4>
         <p>
-          Inspectra's report builder formats client-facing PDF documents with professional white-background templates and golden safety accents. This ensures high-contrast clarity for municipal inspectors reviewing photographic proof and CAD drawings. 
+          Inspectra's report builder formats client-facing PDF documents with professional white-background templates and high-contrast safety details. This ensures high-contrast clarity for municipal inspectors reviewing photographic proof and CAD drawings. 
           Technician reports are transmitted instantly to <strong className="text-cyan-300">reports@ewandf.ca</strong> with complete hardware log telemetry.
         </p>
       </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Device, DeficiencyLog } from "@/lib/mock-data";
+import { Device, DeficiencyHistory } from "@/lib/mock-data";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,14 @@ interface DeficiencyModalProps {
   onClose: () => void;
   device: Device | null;
   isFailureMode: boolean; // True for failed, false for warning/deficiency
-  onSave: (deficiency: Omit<DeficiencyLog, "id" | "loggedAt" | "resolved">) => void;
+  onSave: (deficiency: Omit<DeficiencyHistory, "id" | "loggedAt" | "resolved"> & {
+    addToQuote: boolean;
+    addToReport: boolean;
+    shareWithGovernment: boolean;
+    codeReference?: string;
+    customerExplanation: string;
+    internalNote?: string;
+  }) => void;
 }
 
 export default function DeficiencyModal({ isOpen, onClose, device, isFailureMode, onSave }: DeficiencyModalProps) {
@@ -26,6 +33,7 @@ export default function DeficiencyModal({ isOpen, onClose, device, isFailureMode
   const [internalNote, setInternalNote] = useState("");
   const [addToQuote, setAddToQuote] = useState(true);
   const [addToReport, setAddToReport] = useState(true);
+  const [shareWithGovernment, setShareWithGovernment] = useState(false);
   const [photoPlaceholder, setPhotoPlaceholder] = useState<string | null>(null);
 
   // Load default/suggested text when device changes
@@ -34,20 +42,29 @@ export default function DeficiencyModal({ isOpen, onClose, device, isFailureMode
       setDescription(isFailureMode ? "FAILED ANNUAL OPERATION TEST." : "DEVICE SHOWS MINOR DEVIATIONS.");
       setPriority(isFailureMode ? "high" : "medium");
       setCodeReference(device.type === "Fire Extinguisher" ? "NFPA 10 // Sec 7.3" : device.type === "Smoke Detector" ? "CAN/ULC-S536 // Sec 5.7" : "NFPA 72 // Ch 14");
+      setShareWithGovernment(false);
       
       // Auto-populate recommended repair and customer explanation
       if (device.type === "Smoke Detector") {
-        setRecommendedRepair("REPLACE SMOKE DETECTOR UNIT AND RETEST SYSTEM SIGNAL LOOP.");
-        setCustomerExplanation("The smoke detector in this area did not respond correctly to artificial smoke entry. Replacement is required to ensure proper fire detection coverage.");
+        setRecommendedRepair("Replace smoke detector and retest.");
+        setCustomerExplanation("The smoke detector in the main corridor did not respond properly during testing. Replacement is recommended to restore detection coverage in this area.");
+        setInternalNote("Detector did not activate during smoke entry test. Confirmed circuit response from adjacent device.");
       } else if (device.type === "Emergency Light") {
-        setRecommendedRepair("REPLACE BACKUP LEAD-ACID BATTERY AND CONDUCT LOAD RETEST.");
+        setRecommendedRepair("Replace battery or fixture.");
         setCustomerExplanation("The emergency lighting unit failed the required 30-minute battery discharge test. Battery replacement is required to restore emergency illumination.");
+        setInternalNote("Battery terminals are oxidized, and cell voltage dropped quickly under load drop.");
+      } else if (device.type === "Sprinkler Riser") {
+        setRecommendedRepair("Troubleshoot supervisory circuit and restore signal to fire alarm panel.");
+        setCustomerExplanation("A sprinkler valve supervisory signal is not reporting properly to the fire alarm panel. This may prevent building staff or monitoring from being notified of an abnormal valve condition. Immediate repair is recommended.");
+        setInternalNote("Confirmed device operation at valve, signal not received at panel. Requires circuit troubleshooting.");
+        setPriority("critical");
+        setShareWithGovernment(true);
       } else {
         setRecommendedRepair("REPAIR / REPLACE SUB-COMPONENT.");
         setCustomerExplanation("Device did not meet the full testing standards. Repair is recommended to maintain building compliance.");
+        setInternalNote("");
       }
       
-      setInternalNote("");
       setPhotoPlaceholder(null);
     }
   }, [device, isFailureMode, isOpen]);
@@ -57,7 +74,6 @@ export default function DeficiencyModal({ isOpen, onClose, device, isFailureMode
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({
-      type: device.type,
       description,
       priority,
       codeReference,
@@ -66,7 +82,7 @@ export default function DeficiencyModal({ isOpen, onClose, device, isFailureMode
       internalNote,
       addToQuote,
       addToReport,
-      photoUrl: photoPlaceholder || undefined
+      shareWithGovernment
     });
     onClose();
   };
@@ -105,8 +121,8 @@ export default function DeficiencyModal({ isOpen, onClose, device, isFailureMode
               <Input
                 id="desc"
                 value={description}
-                onChange={(e) => setDescription(e.target.value.toUpperCase())}
-                className="bg-slate-900 border-cyan-500/20 text-cyan-400 rounded-none h-8 text-xs focus-visible:ring-cyan-500/40 uppercase"
+                onChange={(e) => setDescription(e.target.value)}
+                className="bg-slate-900 border-cyan-500/20 text-cyan-400 rounded-none h-8 text-xs focus-visible:ring-cyan-500/40"
                 required
               />
             </div>
@@ -144,8 +160,8 @@ export default function DeficiencyModal({ isOpen, onClose, device, isFailureMode
             <Input
               id="repair"
               value={recommendedRepair}
-              onChange={(e) => setRecommendedRepair(e.target.value.toUpperCase())}
-              className="bg-slate-900 border-cyan-500/20 text-cyan-400 rounded-none h-8 text-xs focus-visible:ring-cyan-500/40 uppercase"
+              onChange={(e) => setRecommendedRepair(e.target.value)}
+              className="bg-slate-900 border-cyan-500/20 text-cyan-400 rounded-none h-8 text-xs focus-visible:ring-cyan-500/40"
               required
             />
           </div>
@@ -197,6 +213,17 @@ export default function DeficiencyModal({ isOpen, onClose, device, isFailureMode
                 />
                 <Label htmlFor="report" className="text-[10px] text-slate-300 font-bold uppercase flex items-center gap-1">
                   <FileText className="w-3 h-3 text-cyan-500" /> INCLUDE_IN_COMPLIANCE_REPORT
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="shareGov"
+                  checked={shareWithGovernment}
+                  onCheckedChange={(checked) => setShareWithGovernment(checked === true)}
+                  className="border-cyan-500/30 data-[state=checked]:bg-cyan-500 data-[state=checked]:text-slate-950 rounded-none"
+                />
+                <Label htmlFor="shareGov" className="text-[10px] text-slate-300 font-bold uppercase flex items-center gap-1">
+                  <ShieldAlert className="w-3 h-3 text-rose-500" /> SHARE WITH GOVERNMENT IF CRITICAL
                 </Label>
               </div>
             </div>
