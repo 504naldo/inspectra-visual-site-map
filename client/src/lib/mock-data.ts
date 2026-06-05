@@ -697,3 +697,453 @@ export const MOCK_SETUP_STEPS: SetupStep[] = [
 
 // Single export of SAMPLE_BUILDING for backwards compatibility
 export const SAMPLE_BUILDING = MOCK_BUILDINGS[0];
+
+// ==========================================
+// EXPANDED SAAS PLATFORM MODELS & DATA
+// ==========================================
+
+export interface CompanyProfile {
+  name: string;
+  logoUrl?: string;
+  address: string;
+  phone: string;
+  email: string;
+  website: string;
+  serviceAreas: string[];
+  businessNumber: string;
+  defaultReportFooter: string;
+  defaultQuoteTerms: string;
+  defaultHourlyRate: number;
+  reportBranding: {
+    primaryColor: string;
+    secondaryColor: string;
+    fontFamily: string;
+    showLogo: boolean;
+  };
+}
+
+export interface UserRole {
+  name: string;
+  permissions: string[];
+}
+
+export interface SaaSUser {
+  id: string;
+  name: string;
+  role: string;
+  certifications?: string[];
+  status: "Active" | "External User" | "Disabled";
+  email: string;
+  phone?: string;
+  company?: string;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  type: string;
+  billingContact: string;
+  siteContact: string;
+  emergencyContact: string;
+  email: string;
+  phone: string;
+  address: string;
+  linkedBuildings: string[];
+  portalAccessStatus: "Enabled" | "Disabled" | "Pending Invite";
+  notes?: string[];
+}
+
+export interface TechnicianMetric {
+  id: string;
+  name: string;
+  role: string;
+  certifications: string[];
+  assignedInspections: number;
+  completedThisMonth: number;
+  deficienciesCreated: number;
+  reportsPendingReview: number;
+  productivityScore: number; // 0-100
+  status: "Active" | "On Leave" | "Offline";
+}
+
+export interface InspectionTemplate {
+  id: string;
+  name: string;
+  systemsIncluded: string[];
+  requiredCategories: string[];
+  checklistItems: { id: string; text: string; required: boolean; photoRequired: boolean }[];
+  requiredPhotos: string[];
+  defaultReportType: string;
+  lastUpdated: string;
+}
+
+export interface DeviceLibraryItem {
+  id: string;
+  type: string;
+  category: DeviceCategory;
+  icon: string;
+  defaultChecklist: string[];
+  commonDeficiencies: { issue: string; technical: string; customer: string; repair: string; priority: "low" | "medium" | "high" | "critical" }[];
+  governmentShareable: boolean;
+}
+
+export interface DeficiencyLanguageItem {
+  id: string;
+  category: string;
+  technical: string;
+  customer: string;
+  repair: string;
+  priority: "low" | "medium" | "high" | "critical";
+}
+
+// MOCK DATA CONSTANTS
+
+export const MOCK_COMPANY_PROFILE: CompanyProfile = {
+  name: "Eagle Eye Fire & Life Safety",
+  address: "400 - 1188 West Georgia St, Vancouver, BC V6E 4A2",
+  phone: "604-555-0198",
+  email: "service@eagleeyefire.ca",
+  website: "www.eagleeyefire.ca",
+  serviceAreas: ["Metro Vancouver", "Richmond", "Burnaby", "Surrey", "Delta", "North Vancouver"],
+  businessNumber: "BC-8849102-LLC",
+  defaultReportFooter: "Eagle Eye Fire & Life Safety is a licensed ASTTBC fire protection provider. All inspections conform to NFPA standards and local fire bylaws.",
+  defaultQuoteTerms: "Net 30 days. Quote valid for 60 days. All materials are certified fire protection hardware. Retesting of replaced items included in price.",
+  defaultHourlyRate: 110,
+  reportBranding: {
+    primaryColor: "#06b6d4", // Cyan
+    secondaryColor: "#0f172a", // Slate 900
+    fontFamily: "JetBrains Mono",
+    showLogo: true
+  }
+};
+
+export const MOCK_SAAS_USERS: SaaSUser[] = [
+  {
+    id: "U-001",
+    name: "R. Daniels",
+    role: "Company Owner",
+    certifications: ["Fire Alarm (ASTTBC)", "Sprinkler ITM", "Emergency Lighting", "Extinguishers", "Backflow Testing"],
+    status: "Active",
+    email: "r.daniels@eagleeyefire.ca",
+    phone: "604-555-0190"
+  },
+  {
+    id: "U-002",
+    name: "A. Singh",
+    role: "Technician",
+    certifications: ["Fire Alarm (ASTTBC)", "Emergency Lighting"],
+    status: "Active",
+    email: "a.singh@eagleeyefire.ca",
+    phone: "604-555-0191"
+  },
+  {
+    id: "U-003",
+    name: "M. Chen",
+    role: "Admin",
+    certifications: [],
+    status: "Active",
+    email: "m.chen@eagleeyefire.ca",
+    phone: "604-555-0192"
+  },
+  {
+    id: "U-004",
+    name: "S. Patel",
+    role: "Technician",
+    certifications: ["Sprinkler ITM", "Extinguishers"],
+    status: "Active",
+    email: "s.patel@eagleeyefire.ca",
+    phone: "604-555-0193"
+  },
+  {
+    id: "U-005",
+    name: "J. Morgan",
+    role: "Property Manager",
+    company: "Harbour View Property Management",
+    status: "External User",
+    email: "j.morgan@harbourviewpm.com",
+    phone: "604-555-0199"
+  },
+  {
+    id: "U-006",
+    name: "Vancouver Fire Prevention",
+    role: "Government / Fire Department",
+    company: "City of Vancouver Fire Rescue",
+    status: "External User",
+    email: "inspections@vancouver.ca"
+  }
+];
+
+export const MOCK_ROLES_PERMISSIONS = [
+  { name: "Company Owner", permissions: ["Full access to billing, users, templates, maps, and all company operations."] },
+  { name: "Admin", permissions: ["Manage customers, buildings, reports, quotes, scheduling, and standard templates."] },
+  { name: "Technician", permissions: ["Access assigned inspections, site maps, device testing, log deficiencies, upload photos and field notes."] },
+  { name: "Report Reviewer", permissions: ["Review technician logs, edit final compliance reports, approve quotes, and export official reports."] },
+  { name: "Property Manager", permissions: ["Access linked buildings, view compliance status, review customer-facing notes, approve repair quotes."] },
+  { name: "Government / Fire Department", permissions: ["Access shared emergency profiles, lockbox locations, FDC maps, and critical deficiency summaries only."] },
+  { name: "Read-Only Viewer", permissions: ["View dashboards and site maps without editing permissions."] }
+];
+
+export const MOCK_CUSTOMERS: Customer[] = [
+  {
+    id: "C-001",
+    name: "Harbour View Property Management",
+    type: "Property Management",
+    billingContact: "Accounts Payable - HVPM",
+    siteContact: "J. Morgan",
+    emergencyContact: "HVPM 24/7 Dispatch",
+    email: "j.morgan@harbourviewpm.com",
+    phone: "604-555-0199",
+    address: "1200 - 555 West Hastings St, Vancouver, BC",
+    linkedBuildings: ["Harbour View Apartments", "Harbour View Estates"],
+    portalAccessStatus: "Enabled",
+    notes: ["Prefers morning inspections.", "Requires 48-hour tenant notice for entry."]
+  },
+  {
+    id: "C-002",
+    name: "Pacific Medical Group",
+    type: "Healthcare",
+    billingContact: "Finance - PMG",
+    siteContact: "Dr. Lena Brooks",
+    emergencyContact: "Hospital Facilities Lead",
+    email: "l.brooks@pacificmedical.ca",
+    phone: "604-555-0211",
+    address: "750 West Broadway, Vancouver, BC",
+    linkedBuildings: ["Pacific Medical Center"],
+    portalAccessStatus: "Enabled",
+    notes: ["Requires infection control protocols during testing.", "Sensitive clinical areas must be scheduled after 5 PM."]
+  },
+  {
+    id: "C-003",
+    name: "City of Richmond Facilities",
+    type: "Government",
+    billingContact: "City of Richmond Finance",
+    siteContact: "Facilities Department",
+    emergencyContact: "Richmond Security Dispatch",
+    email: "facilities@richmond.ca",
+    phone: "604-555-0399",
+    address: "6911 No. 3 Road, Richmond, BC",
+    linkedBuildings: ["Richmond Civic Center", "Richmond Fire Hall No. 1", "Richmond Library"],
+    portalAccessStatus: "Pending Invite",
+    notes: ["Requires ASTTBC certified technicians only.", "Official report must be submitted directly to municipal database."]
+  },
+  {
+    id: "C-004",
+    name: "Granville Retail Holdings",
+    type: "Commercial Retail",
+    billingContact: "Granville Accounts",
+    siteContact: "K. Alvarez",
+    emergencyContact: "Granville Security Control",
+    email: "k.alvarez@granvilleretail.com",
+    phone: "604-555-0911",
+    address: "1055 Dunsmuir St, Vancouver, BC",
+    linkedBuildings: ["Granville Business Center"],
+    portalAccessStatus: "Disabled",
+    notes: ["High-traffic commercial area.", "Requires testing to be done in phases to avoid retail disruption."]
+  }
+];
+
+export const MOCK_TECHNICIANS: TechnicianMetric[] = [
+  {
+    id: "T-001",
+    name: "R. Daniels",
+    role: "Lead Technician / Owner",
+    certifications: ["Fire Alarm", "Sprinkler", "Emergency Lighting", "Extinguishers", "Backflow"],
+    assignedInspections: 4,
+    completedThisMonth: 18,
+    deficienciesCreated: 27,
+    reportsPendingReview: 3,
+    productivityScore: 96,
+    status: "Active"
+  },
+  {
+    id: "T-002",
+    name: "A. Singh",
+    role: "Technician",
+    certifications: ["Fire Alarm", "Emergency Lighting"],
+    assignedInspections: 6,
+    completedThisMonth: 22,
+    deficienciesCreated: 19,
+    reportsPendingReview: 2,
+    productivityScore: 92,
+    status: "Active"
+  },
+  {
+    id: "T-003",
+    name: "S. Patel",
+    role: "Technician",
+    certifications: ["Sprinkler", "Extinguishers"],
+    assignedInspections: 3,
+    completedThisMonth: 14,
+    deficienciesCreated: 11,
+    reportsPendingReview: 1,
+    productivityScore: 88,
+    status: "Active"
+  }
+];
+
+export const MOCK_INSPECTION_TEMPLATES: InspectionTemplate[] = [
+  {
+    id: "TMP-001",
+    name: "Annual Fire Alarm Inspection",
+    systemsIncluded: ["Control Panel", "Detection Circuits", "Notification Appliances", "Monitoring Signals"],
+    requiredCategories: ["Detection & Control", "Notification"],
+    checklistItems: [
+      { id: "FA-01", text: "Verify fire alarm control panel normal condition", required: true, photoRequired: false },
+      { id: "FA-02", text: "Test initiating devices (Smokes, Heats, Pulls)", required: true, photoRequired: true },
+      { id: "FA-03", text: "Test notification appliances (Horns, Strobes)", required: true, photoRequired: false },
+      { id: "FA-04", text: "Verify annunciator operation & key controls", required: true, photoRequired: false },
+      { id: "FA-05", text: "Confirm supervisory devices & valve tampers", required: true, photoRequired: false },
+      { id: "FA-06", text: "Confirm trouble signals & panel backup batteries", required: true, photoRequired: true },
+      { id: "FA-07", text: "Confirm central station monitoring signals", required: true, photoRequired: false }
+    ],
+    requiredPhotos: ["FACP Normal Status", "Batteries Date Code", "Initiating Device Failure (if any)"],
+    defaultReportType: "ASTTBC Standard Fire Alarm Report",
+    lastUpdated: "2026-01-15"
+  },
+  {
+    id: "TMP-002",
+    name: "Emergency Lighting ITM",
+    systemsIncluded: ["Battery Packs", "Remote Heads", "Exit Signs", "Evacuation Routes"],
+    requiredCategories: ["Egress & Lighting"],
+    checklistItems: [
+      { id: "EL-01", text: "Verify physical integrity of battery units", required: true, photoRequired: false },
+      { id: "EL-02", text: "Perform 30-minute operational duration test", required: true, photoRequired: false },
+      { id: "EL-03", text: "Test manual push-to-test buttons", required: true, photoRequired: false },
+      { id: "EL-04", text: "Check remote lighting heads alignment", required: true, photoRequired: false },
+      { id: "EL-05", text: "Verify exit sign illumination & backup power", required: true, photoRequired: true }
+    ],
+    requiredPhotos: ["Tested Exit Sign", "Battery Pack Interior"],
+    defaultReportType: "Monthly/Annual Emergency Lighting Log",
+    lastUpdated: "2026-02-10"
+  },
+  {
+    id: "TMP-003",
+    name: "Sprinkler & Standpipe Review",
+    systemsIncluded: ["Wet Riser", "Dry Riser", "Control Valves", "Pressure Switches", "FDC Connection"],
+    requiredCategories: ["Suppression", "Access & Utilities"],
+    checklistItems: [
+      { id: "SP-01", text: "Inspect dry valve and air pressure levels", required: true, photoRequired: true },
+      { id: "SP-02", text: "Verify water flow pressure switch alarms", required: true, photoRequired: false },
+      { id: "SP-03", text: "Test main drain pressure drops", required: true, photoRequired: false },
+      { id: "SP-04", text: "Inspect FDC physical threads and caps", required: true, photoRequired: true },
+      { id: "SP-05", text: "Confirm lockbox keys match access locks", required: true, photoRequired: false }
+    ],
+    requiredPhotos: ["Dry Valve Gauge", "FDC Connection Thread"],
+    defaultReportType: "NFPA 25 Sprinkler Compliance Report",
+    lastUpdated: "2026-03-05"
+  }
+];
+
+export const MOCK_DEVICE_LIBRARY: DeviceLibraryItem[] = [
+  {
+    id: "DL-001",
+    type: "Fire Alarm Panel",
+    category: "Detection & Control",
+    icon: "Shield",
+    defaultChecklist: ["Verify AC power normal", "Check backup battery load", "Test ground fault detection", "Verify signaling circuits"],
+    commonDeficiencies: [
+      {
+        issue: "FACP backup batteries failed load test",
+        technical: "FACP backup batteries failed required load duration test.",
+        customer: "The backup batteries for the main fire alarm control panel did not hold a sufficient charge. Replaced batteries are required to ensure the system functions during a power outage.",
+        repair: "Replace 12V 12Ah FACP backup batteries and retest panel charging circuit.",
+        priority: "critical"
+      }
+    ],
+    governmentShareable: true
+  },
+  {
+    id: "DL-002",
+    type: "Smoke Detector",
+    category: "Detection & Control",
+    icon: "Flame",
+    defaultChecklist: ["Perform aerosol smoke entry test", "Check sensitivity readout", "Clean chamber dust", "Verify addressable ID"],
+    commonDeficiencies: [
+      {
+        issue: "Smoke detector failed entry test",
+        technical: "Smoke detector failed to activate during smoke entry testing.",
+        customer: "The smoke detector in this area did not respond properly during testing. Replacement and retesting are recommended to restore detection coverage.",
+        repair: "Replace smoke detector head and retest circuit.",
+        priority: "medium"
+      }
+    ],
+    governmentShareable: false
+  },
+  {
+    id: "DL-003",
+    type: "Emergency Light",
+    category: "Egress & Lighting",
+    icon: "Sun",
+    defaultChecklist: ["Perform 30-minute duration test", "Verify battery charging voltage", "Align lighting heads", "Clean lenses"],
+    commonDeficiencies: [
+      {
+        issue: "Emergency light battery failed duration test",
+        technical: "Emergency lighting unit failed required battery-duration test.",
+        customer: "The emergency light did not remain illuminated for the required test duration. Repair or replacement is recommended to support safe evacuation during a power outage.",
+        repair: "Replace battery pack or entire emergency lighting unit.",
+        priority: "high"
+      }
+    ],
+    governmentShareable: false
+  },
+  {
+    id: "DL-004",
+    type: "Sprinkler Riser",
+    category: "Suppression",
+    icon: "Droplets",
+    defaultChecklist: ["Verify control valves are locked open", "Perform main drain test", "Test pressure switch alarm", "Record water pressure gauges"],
+    commonDeficiencies: [
+      {
+        issue: "Control valve tamper switch not reporting",
+        technical: "Sprinkler supervisory switch did not report correctly to the fire alarm control panel.",
+        customer: "A sprinkler valve supervisory signal is not reporting properly to the fire alarm panel. Immediate troubleshooting is recommended.",
+        repair: "Troubleshoot supervisory circuit and restore proper reporting.",
+        priority: "critical"
+      }
+    ],
+    governmentShareable: true
+  }
+];
+
+export const MOCK_DEFICIENCY_LANGUAGE_LIBRARY: DeficiencyLanguageItem[] = [
+  {
+    id: "DLL-001",
+    category: "Fire alarm",
+    technical: "Smoke detector failed to activate during smoke entry testing.",
+    customer: "The smoke detector in this area did not respond properly during testing. Replacement and retesting are recommended to restore detection coverage.",
+    repair: "Replace smoke detector head and retest circuit.",
+    priority: "medium"
+  },
+  {
+    id: "DLL-002",
+    category: "Emergency lighting",
+    technical: "Emergency lighting unit failed required battery-duration test.",
+    customer: "The emergency light did not remain illuminated for the required test duration. Repair or replacement is recommended to support safe evacuation during a power outage.",
+    repair: "Replace battery or emergency lighting unit and retest.",
+    priority: "high"
+  },
+  {
+    id: "DLL-003",
+    category: "Sprinkler",
+    technical: "Sprinkler supervisory switch did not report correctly to the fire alarm control panel.",
+    customer: "A sprinkler valve supervisory signal is not reporting properly to the fire alarm panel. Immediate troubleshooting is recommended.",
+    repair: "Troubleshoot supervisory circuit and restore proper reporting.",
+    priority: "critical"
+  },
+  {
+    id: "DLL-004",
+    category: "Fire extinguishers",
+    technical: "Fire extinguisher is past required hydrostatic test date or annual maintenance.",
+    customer: "The portable fire extinguisher in this area is overdue for required maintenance or testing. Servicing is required to ensure it functions in an emergency.",
+    repair: "Perform annual maintenance, recharge, or replace fire extinguisher.",
+    priority: "medium"
+  },
+  {
+    id: "DLL-005",
+    category: "FDC / standpipe",
+    technical: "FDC connection is missing protective caps, exposing water inlet threads.",
+    customer: "The Fire Department Connection (FDC) on the building exterior is missing its protective caps. Replacement is required to prevent debris from blocking the water inlet during an emergency.",
+    repair: "Install new 2.5-inch brass FDC caps with security chains.",
+    priority: "high"
+  }
+];

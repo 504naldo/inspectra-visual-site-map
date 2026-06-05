@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
   MOCK_DEVICES, MOCK_REPORTS, MOCK_QUOTES, DEFAULT_MUNICIPAL_SHARING, MOCK_SETUP_STEPS,
-  Device, DeviceStatus, FLOORS, Report, Quote, MunicipalSharingSettings, SetupStep
+  Device, DeviceStatus, FLOORS, Report, Quote, MunicipalSharingSettings, SetupStep,
+  MOCK_BUILDINGS
 } from "@/lib/mock-data";
 import MapCanvas from "@/components/MapCanvas";
 import DeviceDetailPanel from "@/components/DeviceDetailPanel";
@@ -13,6 +14,16 @@ import MunicipalSharingView from "@/components/MunicipalSharingView";
 import BuildingsView from "@/components/BuildingsView";
 import SetupWizardView from "@/components/SetupWizardView";
 import DeficienciesView from "@/components/DeficienciesView";
+
+// New Views
+import CompanyAdminView from "@/components/CompanyAdminView";
+import CustomersView from "@/components/CustomersView";
+import TechniciansView from "@/components/TechniciansView";
+import TemplatesView from "@/components/TemplatesView";
+import DeviceLibraryView from "@/components/DeviceLibraryView";
+import DeficiencyLanguageView from "@/components/DeficiencyLanguageView";
+import ImportDevicesView from "@/components/ImportDevicesView";
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -20,7 +31,8 @@ import {
   Flame, Shield, Radio, Droplets, Waves, ShieldAlert, Compass, 
   ArrowRight, Key, Search, Play, Pause, RotateCcw, LayoutDashboard, 
   Map as MapIcon, FileText, DollarSign, ShieldCheck, Sun, Moon, 
-  User, Building, ShieldAlert as GovIcon, PhoneCall, AlertTriangle, Settings, CheckCircle2
+  User, Building, ShieldAlert as GovIcon, PhoneCall, AlertTriangle, Settings, CheckCircle2,
+  Users, Users2, Library, FileCode, Database, ClipboardList
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -33,7 +45,8 @@ export default function Home() {
   const [setupSteps, setSetupSteps] = useState<SetupStep[]>(MOCK_SETUP_STEPS);
   
   // Navigation & View State
-  const [activePage, setActivePage] = useState<string>("map"); // "buildings" | "map" | "deficiencies" | "reports" | "quotes" | "sharing" | "setup"
+  const [activePage, setActivePage] = useState<string>("map"); 
+  // "buildings" | "map" | "deficiencies" | "reports" | "quotes" | "sharing" | "setup" | "company" | "customers" | "technicians" | "templates" | "library" | "deficiency-lang" | "import"
   const [activeFloor, setActiveFloor] = useState<string>("Main Floor");
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   
@@ -58,234 +71,302 @@ export default function Home() {
   const [terminalLogs, setTerminalLogs] = useState<string[]>([
     "SYS_SIM // INITIATING SYSTEM COCKPIT...",
     "SECURE_LINK // CONNECTED TO HARBOUR VIEW APARTMENTS LIFE-SAFETY REGISTRY.",
-    "READY // SELECT AN ACTION OR COMMENCE SWEEP."
+    "READY // LIFE-SAFETY MAPPING ENGINE STABLE."
   ]);
-  const terminalEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll terminal logs
-  useEffect(() => {
-    terminalEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [terminalLogs]);
-
-  // Log to terminal helper
   const addLog = (msg: string) => {
     const timestamp = new Date().toLocaleTimeString();
-    setTerminalLogs((prev) => [...prev, `[${timestamp}] ${msg}`]);
+    setTerminalLogs(prev => [...prev, `[${timestamp}] ${msg}`].slice(-50)); // keep last 50
   };
 
-  // Theme Syncing
+  // Walkthrough State
+  const [walkthroughStep, setWalkthroughStep] = useState<number>(0); // 0 means not started
+  const [walkthroughCompleted, setWalkthroughStepCompleted] = useState<boolean>(false);
+
+  // Effect to apply global theme class
   useEffect(() => {
     const root = window.document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
-    } else {
+    if (theme === "light") {
       root.classList.remove("dark");
+      root.classList.add("light");
+    } else {
+      root.classList.remove("light");
+      root.classList.add("dark");
     }
   }, [theme]);
 
-  // Automated Sweep Simulation Logic
+  // Handle active simulation sweep
   useEffect(() => {
     if (isSimulating) {
-      addLog("SWEEP_SIM // STARTING LIFE-SAFETY HARDWARE SWEEP...");
-      
-      // Filter untested devices on the active floor
-      const untestedOnFloor = devices.filter(d => d.floor === activeFloor && d.status === "not_tested");
-      
-      if (untestedOnFloor.length === 0) {
-        addLog("SWEEP_SIM // NO UNTESTED DEVICES REMAINING ON THIS FLOOR.");
-        setIsSimulating(false);
-        toast.info("SWEEP COMPLETE", { description: "All devices on this floor have been inspected." });
-        return;
-      }
-
-      let currentDeviceIndex = 0;
+      addLog("SYS_SIM // AUTOMATED TELEMETRY SWEEP INITIATED.");
+      toast.success("SIMULATION SWEEP ACTIVE", {
+        description: "Scanning and testing devices sequentially every 1.5 seconds."
+      });
 
       simIntervalRef.current = setInterval(() => {
-        if (currentDeviceIndex >= untestedOnFloor.length) {
-          clearInterval(simIntervalRef.current!);
-          setIsSimulating(false);
-          addLog("SWEEP_SIM // FULL FLOOR SWEEP LOGGED SUCCESSFULLY.");
-          toast.success("SWEEP COMPLETED", { description: "Inspection results synchronized." });
-          return;
-        }
-
-        const targetDevice = untestedOnFloor[currentDeviceIndex];
-        
-        // Step 1: Mark as Testing
-        setDevices(prev => prev.map(d => d.id === targetDevice.id ? { ...d, status: "testing" } : d));
-        setSelectedDeviceId(targetDevice.id);
-        addLog(`TESTING // PINGING NODE: ${targetDevice.label} (${targetDevice.type})`);
-
-        // Step 2: Resolve with realistic outcome after 1s
-        setTimeout(() => {
-          // 85% pass, 10% fail, 5% deficiency
-          const rand = Math.random();
-          let finalStatus: DeviceStatus = "passed";
-          let logMsg = `PASS // NODE: ${targetDevice.label} VERIFIED`;
-
-          if (rand > 0.9) {
-            finalStatus = "failed";
-            logMsg = `CRITICAL_FAIL // NODE: ${targetDevice.label} FAILED COMPLIANCE OPERATIONAL STANDARDS`;
-            toast.error("TEST FAILED", { description: `${targetDevice.label} failed operation test.` });
-          } else if (rand > 0.85) {
-            finalStatus = "deficiency";
-            logMsg = `WARNING // NODE: ${targetDevice.label} LOGGED MINOR DEVIATION`;
-            toast.warning("DEFICIENCY LOGGED", { description: `${targetDevice.label} has minor deviations.` });
-          } else {
-            toast.success("TEST PASSED", { description: `${targetDevice.label} verified.` });
+        setDevices(currentDevices => {
+          // Find all untested devices
+          const untested = currentDevices.filter(d => d.status === "not_tested");
+          if (untested.length === 0) {
+            setIsSimulating(false);
+            addLog("SYS_SIM // SWEEP COMPLETED. ALL REGISTERED HARDWARE COMPLIANT OR LOGGED.");
+            toast.success("SWEEP COMPLETED", { description: "All devices have been inspected." });
+            return currentDevices;
           }
 
-          setDevices(prev => prev.map(d => {
+          // Pick a random device
+          const randomIndex = Math.floor(Math.random() * untested.length);
+          const targetDevice = untested[randomIndex];
+
+          // Determine random inspection outcome
+          // 80% pass, 10% fail, 5% deficiency, 5% no access
+          const rand = Math.random();
+          let finalStatus: DeviceStatus = "passed";
+          let note = "";
+
+          if (rand > 0.95) {
+            finalStatus = "no_access";
+            note = "No access - Door locked / tenant away.";
+          } else if (rand > 0.90) {
+            finalStatus = "deficiency";
+            note = "Minor dust build-up / cover cracked.";
+          } else if (rand > 0.80) {
+            finalStatus = "failed";
+            note = "Failed battery backup load test.";
+          }
+
+          // Log the sweep event
+          const statusText = finalStatus.toUpperCase();
+          addLog(`SYS_SWEEP // TESTED: ${targetDevice.label} [${targetDevice.type}] -> ${statusText}`);
+
+          // Trigger sonner toast for critical failure/deficiencies
+          if (finalStatus === "failed") {
+            toast.error(`ALARM // DEFICIENCY DETECTED: ${targetDevice.label}`, {
+              description: `${targetDevice.type} at ${targetDevice.floor} failed test.`
+            });
+          } else if (finalStatus === "deficiency") {
+            toast.warning(`WARNING // MINOR ISSUE: ${targetDevice.label}`, {
+              description: `${targetDevice.type} needs attention.`
+            });
+          } else if (finalStatus === "passed") {
+            toast.success(`TEST_PASS // COMPLIANT: ${targetDevice.label}`);
+          }
+
+          // Return updated device array
+          return currentDevices.map(d => {
             if (d.id === targetDevice.id) {
-              return { 
-                ...d, 
+              return {
+                ...d,
                 status: finalStatus,
                 lastTestedAt: new Date().toISOString(),
-                lastTestedBy: "Alex Mercer (Tech #401)"
+                lastTestedBy: "R. Daniels (Tech #401)",
+                deficiencyNote: note,
+                serviceHistory: [
+                  {
+                    date: new Date().toISOString().split('T')[0],
+                    action: `Simulated Inspection: ${statusText}`,
+                    technician: "R. Daniels (Tech #401)"
+                  },
+                  ...(d.serviceHistory || [])
+                ]
               };
             }
             return d;
-          }));
-
-          addLog(logMsg);
-        }, 800);
-
-        currentDeviceIndex++;
-      }, 1800);
-
+          });
+        });
+      }, 1500);
     } else {
       if (simIntervalRef.current) {
         clearInterval(simIntervalRef.current);
-        addLog("SWEEP_SIM // SWEEP MANUALLY INTERRUPTED.");
+        addLog("SYS_SIM // AUTOMATED TELEMETRY SWEEP SUSPENDED.");
       }
     }
 
     return () => {
-      if (simIntervalRef.current) clearInterval(simIntervalRef.current);
+      if (simIntervalRef.current) {
+        clearInterval(simIntervalRef.current);
+      }
     };
-  }, [isSimulating, activeFloor]);
+  }, [isSimulating]);
 
-  // Update single device status
-  const handleUpdateDeviceStatus = (deviceId: string, status: DeviceStatus) => {
-    setDevices(prev => prev.map(d => d.id === deviceId ? { 
-      ...d, 
-      status,
-      lastTestedAt: status === "not_tested" ? undefined : new Date().toISOString(),
-      lastTestedBy: status === "not_tested" ? undefined : "Alex Mercer (Tech #401)"
-    } : d));
-    
-    const target = devices.find(d => d.id === deviceId);
-    if (target) {
-      addLog(`OVERRIDE // MANUAL STATUS CHANGE ON NODE: ${target.label} -> ${status.toUpperCase()}`);
-      toast.success("STATUS UPDATED", { description: `Node ${target.label} marked as ${status.replace("_", " ")}.` });
-    }
+  // Update a single device status manually
+  const handleUpdateDeviceStatus = (deviceId: string, status: DeviceStatus, note?: string) => {
+    setDevices(prev => prev.map(d => {
+      if (d.id === deviceId) {
+        const statusText = status.toUpperCase();
+        addLog(`SYS_MANUAL // UPDATE: ${d.label} [${d.type}] -> ${statusText}`);
+        
+        return {
+          ...d,
+          status,
+          lastTestedAt: new Date().toISOString(),
+          lastTestedBy: "R. Daniels (Tech #401)",
+          deficiencyNote: note || d.deficiencyNote,
+          serviceHistory: [
+            {
+              date: new Date().toISOString().split('T')[0],
+              action: `Manual Update: Marked ${statusText}`,
+              technician: "R. Daniels (Tech #401)"
+            },
+            ...(d.serviceHistory || [])
+          ]
+        };
+      }
+      return d;
+    }));
   };
 
-  // Trigger deficiency modal
+  // Open deficiency modal
   const handleTriggerDeficiencyModal = (isFailure: boolean) => {
     setDeficiencyModalIsFailure(isFailure);
     setIsDeficiencyModalOpen(true);
   };
 
-  // Save Deficiency Log & Generate Quote/Report
-  const handleSaveDeficiency = (deficiencyData: any) => {
+  // Submit deficiency from modal
+  const handleAddDeficiency = (data: {
+    priority: "low" | "medium" | "high" | "critical";
+    description: string;
+    nfpaCode: string;
+    recommendedRepair: string;
+    photoUrl?: string;
+    autoGenerateQuote: boolean;
+    autoGenerateReport: boolean;
+  }) => {
     if (!selectedDeviceId) return;
-    const target = devices.find(d => d.id === selectedDeviceId);
-    if (!target) return;
 
-    const finalStatus: DeviceStatus = deficiencyModalIsFailure ? "failed" : "deficiency";
+    const targetDevice = devices.find(d => d.id === selectedDeviceId);
+    if (!targetDevice) return;
 
-    // Update Device State
+    const status: DeviceStatus = deficiencyModalIsFailure ? "failed" : "deficiency";
+
+    // Update devices array with detailed notes
     setDevices(prev => prev.map(d => {
       if (d.id === selectedDeviceId) {
-        const newLog = {
-          id: `DEF-${Math.floor(Math.random() * 10000)}`,
-          loggedAt: new Date().toISOString(),
-          resolved: false,
-          ...deficiencyData
-        };
         return {
           ...d,
-          status: finalStatus,
-          deficiencyNote: deficiencyData.description,
-          deficiencyHistory: [...(d.deficiencyHistory || []), newLog],
+          status,
           lastTestedAt: new Date().toISOString(),
-          lastTestedBy: "Alex Mercer (Tech #401)"
+          lastTestedBy: "R. Daniels (Tech #401)",
+          deficiencyNote: data.description,
+          customerNotes: `[NFPA COMPLIANCE DEFICIENCY] - ${data.description}. Recommended repair: ${data.recommendedRepair}. Standard: ${data.nfpaCode}.`,
+          technicianNotes: `Internal Tech Note: Priority ${data.priority.toUpperCase()}. ${data.recommendedRepair}.`,
+          photoUrl: data.photoUrl,
+          deficiencyHistory: [
+            {
+              id: `DEF-${Date.now()}`,
+              loggedAt: new Date().toISOString().split('T')[0],
+              resolved: false,
+              priority: data.priority,
+              description: data.description,
+              recommendedRepair: data.recommendedRepair
+            },
+            ...(d.deficiencyHistory || [])
+          ]
         };
       }
       return d;
     }));
 
-    // Auto-generate Quote Item if checked
-    if (deficiencyData.addToQuote) {
+    addLog(`DEFICIENCY_LOGGED // DEVICE: ${targetDevice.label} // PRIORITY: ${data.priority.toUpperCase()} // NFPA: ${data.nfpaCode}`);
+
+    // Optionally auto-generate Quote Item
+    if (data.autoGenerateQuote) {
+      const labourCost = data.priority === "critical" || data.priority === "high" ? 180 : 90;
+      const materialCost = targetDevice.type === "Smoke Detector" ? 120 : 
+                           targetDevice.type === "Sprinkler Riser" ? 450 : 75;
+
       const newQuoteItem = {
-        id: `QI-${Math.floor(Math.random() * 10000)}`,
-        deviceId: target.id,
-        deviceLabel: target.label,
-        description: deficiencyData.recommendedRepair,
-        labourCost: deficiencyModalIsFailure ? 120 : 60,
-        materialCost: target.type === "Smoke Detector" ? 185 : target.type === "Emergency Light" ? 45 : 50,
+        id: `QI-${Date.now()}`,
+        deviceId: targetDevice.id,
+        deviceLabel: targetDevice.label,
+        description: data.recommendedRepair,
+        labourCost,
+        materialCost,
         qty: 1
       };
 
       setQuotes(prev => prev.map(q => {
-        if (q.id === "Q-2026-1047") {
+        if (q.id === "Q-2026-1047") { // Target active demo quote
           return {
             ...q,
+            status: "Awaiting Approval",
             items: [...q.items, newQuoteItem]
           };
         }
         return q;
       }));
 
-      addLog(`QUOTE_GEN // ADDED REPAIR SCOPE TO ACTIVE ESTIMATE Q-2026-1047`);
+      addLog(`QUOTE_GEN // APPENDED REPAIR ESTIMATE TO Q-2026-1047.`);
     }
 
-    addLog(`DEFICIENCY_COMMITTED // COMPLIANCE EXPORT READY FOR REGISTRY.`);
-    toast.success("DEFICIENCY COMMITTED", { description: "Deficiency successfully logged and exported." });
+    // Optionally auto-generate Compliance Report
+    if (data.autoGenerateReport) {
+      setReports(prev => prev.map(r => {
+        if (r.id === "RPT-2026-0614-HVA") {
+          return {
+            ...r,
+            status: "Ready for Review"
+          };
+        }
+        return r;
+      }));
+      addLog(`REPORT_GEN // RE-DRAFTED COMPLIANCE REPORT RPT-2026-0614-HVA.`);
+    }
+
+    toast.success("DEFICIENCY REGISTERED", {
+      description: `Successfully logged ${status.toUpperCase()} on device ${targetDevice.label}.`
+    });
+
+    setIsDeficiencyModalOpen(false);
   };
 
-  // Approve Quote Handler
+  // PM Approve Quote
   const handleApproveQuote = (quoteId: string) => {
     setQuotes(prev => prev.map(q => {
       if (q.id === quoteId) {
-        // Find devices referenced in the quote and mark them as resolved/passed
-        const deviceIdsInQuote = q.items.map(item => item.deviceId);
+        addLog(`QUOTE_APPROVED // CUSTOMER SIGN-OFF ON QUOTE: ${q.quoteNumber}`);
+        toast.success("QUOTE APPROVED", {
+          description: `Quote ${q.quoteNumber} has been signed and authorized for dispatch.`
+        });
+
+        // Auto-resolve devices associated with this quote
+        const deviceIdsToResolve = q.items.map(item => item.deviceId);
         setDevices(currDevices => currDevices.map(d => {
-          if (deviceIdsInQuote.includes(d.id)) {
+          if (deviceIdsToResolve.includes(d.id)) {
+            addLog(`RESOLVED // REPAIR DISPATCHED FOR DEVICE: ${d.label}`);
             return {
               ...d,
-              status: "passed",
-              customerNotes: "REPAIR APPROVED & VERIFIED AS RESOLVED.",
-              technicianNotes: "HARDWARE REPLACED. VERIFIED PASSING TELEMETRY."
+              status: "passed", // resolve back to pass
+              deficiencyNote: undefined
             };
           }
           return d;
         }));
 
-        addLog(`QUOTE_APPROVED // QUOTE ${quoteId} APPROVED BY CUSTOMER. REPAIRS RESOLVED.`);
         return { ...q, status: "Approved" };
       }
       return q;
     }));
   };
 
-  // Toggle Setup Steps
+  // Toggle Setup Step
   const handleToggleSetupStep = (stepId: number) => {
     setSetupSteps(prev => prev.map(s => {
       if (s.id === stepId) {
-        const nextStatus = s.status === "completed" ? "pending" : "completed";
-        addLog(`SETUP_WIZARD // TOGGLED STEP_0${s.id} -> ${nextStatus.toUpperCase()}`);
-        return { ...s, status: nextStatus };
+        const newStatus = s.status === "completed" ? "pending" : "completed";
+        addLog(`SETUP_WIZARD // TOGGLED STEP ${s.id}: ${newStatus.toUpperCase()}`);
+        return { ...s, status: newStatus as any };
       }
       return s;
     }));
   };
 
-  // Reset Entire Sweep Simulation Data
+  // Reset simulation back to defaults
   const handleResetSimulation = () => {
     setDevices(MOCK_DEVICES);
+    setReports(MOCK_REPORTS);
     setQuotes(MOCK_QUOTES);
+    setSharingSettings(DEFAULT_MUNICIPAL_SHARING);
     setSetupSteps(MOCK_SETUP_STEPS);
     setSelectedDeviceId(null);
     setIsSimulating(false);
@@ -308,100 +389,7 @@ export default function Home() {
       case "buildings":
         return (
           <BuildingsView 
-            buildings={[{
-              id: "HVA",
-              name: "Harbour View Apartments",
-              address: "1420 Harbour Front Way, Vancouver, BC",
-              occupancyType: "Residential",
-              floorsCount: 5,
-              floors: ["Parkade P1", "Main Floor", "Level 2", "Level 3", "Roof"],
-              status: "In Progress",
-              lastInspectionDate: "2025-06-14",
-              nextInspectionDue: "2026-06-14",
-              totalDevices: totalCount,
-              openDeficiencies: failedCount + warningCount,
-              criticalDeficiencies: failedCount,
-              setupProgress: 60,
-              fireAlarmType: "2-Stage Addressable",
-              lockboxLocation: "Main Lobby Vestibule",
-              fdcLocation: "North-West Corner of Building",
-              panelLocation: "Main Lobby",
-              constructionType: "Concrete High-Rise",
-              occupancyTypeDetail: "Multi-Family Residential",
-              emergencyContacts: [
-                { name: "John Doe", role: "Property Manager", phone: "604-555-0199", afterHours: false },
-                { name: "Emergency Dispatch", role: "Fire Monitoring", phone: "604-555-0100", afterHours: true }
-              ]
-            }, {
-              id: "PMB",
-              name: "Pacific Medical Center",
-              address: "750 West Broadway, Vancouver, BC",
-              occupancyType: "Medical",
-              floorsCount: 8,
-              floors: ["B1 Parkade", "Main Floor", "Level 2", "Level 3", "Level 4", "Level 5", "Level 6", "Level 7", "Level 8", "Roof"],
-              status: "Compliant",
-              lastInspectionDate: "2026-04-10",
-              nextInspectionDue: "2027-04-10",
-              totalDevices: 142,
-              openDeficiencies: 0,
-              criticalDeficiencies: 0,
-              setupProgress: 100,
-              fireAlarmType: "2-Stage Addressable",
-              lockboxLocation: "Main Lobby Vestibule",
-              fdcLocation: "West Side near Main Driveway",
-              panelLocation: "Main Lobby Desk",
-              constructionType: "Concrete High-Rise",
-              occupancyTypeDetail: "Medical Office Building",
-              emergencyContacts: [
-                { name: "Jane Smith", role: "Building Engineer", phone: "604-555-0211", afterHours: true }
-              ]
-            }, {
-              id: "RCC",
-              name: "Richmond Civic Center",
-              address: "6911 No. 3 Road, Richmond, BC",
-              occupancyType: "Municipal",
-              floorsCount: 4,
-              floors: ["Main Floor", "Level 2", "Level 3", "Level 4", "Roof"],
-              status: "Critical Deficiencies",
-              lastInspectionDate: "2025-11-20",
-              nextInspectionDue: "2026-11-20",
-              totalDevices: 95,
-              openDeficiencies: 4,
-              criticalDeficiencies: 2,
-              setupProgress: 100,
-              fireAlarmType: "Single-Stage Addressable",
-              lockboxLocation: "Main Entrance Exterior",
-              fdcLocation: "South Side near Hydrant",
-              panelLocation: "Main Lobby Vestibule",
-              constructionType: "Steel Frame & Concrete",
-              occupancyTypeDetail: "Municipal Government Offices",
-              emergencyContacts: [
-                { name: "Duty Officer", role: "Security Dispatch", phone: "604-555-0399", afterHours: true }
-              ]
-            }, {
-              id: "GBC",
-              name: "Granville Business Center",
-              address: "1055 Dunsmuir St, Vancouver, BC",
-              occupancyType: "Commercial",
-              floorsCount: 12,
-              floors: ["P1 Parkade", "P2 Parkade", "Main Lobby", "Level 2", "Level 3", "Level 4", "Level 5", "Level 6", "Level 7", "Level 8", "Level 9", "Level 10", "Level 11", "Level 12", "Roof"],
-              status: "In Progress",
-              lastInspectionDate: "2025-09-05",
-              nextInspectionDue: "2026-09-05",
-              totalDevices: 210,
-              openDeficiencies: 2,
-              criticalDeficiencies: 0,
-              setupProgress: 80,
-              fireAlarmType: "2-Stage Addressable",
-              lockboxLocation: "South-West Main Entry",
-              fdcLocation: "East Side near Loading Dock",
-              panelLocation: "Security Control Room",
-              constructionType: "Concrete High-Rise",
-              occupancyTypeDetail: "Commercial Office Tower",
-              emergencyContacts: [
-                { name: "Building Security", role: "Command Center", phone: "604-555-0911", afterHours: true }
-              ]
-            }]} 
+            buildings={MOCK_BUILDINGS} 
             onSelectBuilding={(bldId) => {
               addLog(`BUILDING_SWITCHED // LOADED Blueprints for: ${bldId}`);
               setActivePage("map");
@@ -467,7 +455,7 @@ export default function Home() {
                     if (activeRole === "government") {
                       const isEmergency = [
                         "Fire Alarm Panel", "Annunciator", "FDC", "Sprinkler Riser", 
-                        "Lockbox", "Roof Access", "Electrical Shutoff", "Gas Shutoff", "Standpipe", "Smoke Control Panel"
+                        "Lockbox", "Roof Access", "Electrical Shutoff", "GasShutoff", "Standpipe", "Smoke Control Panel"
                       ].includes(d.type);
                       return matchesSearch && matchesCat && matchesStatus && matchesFloor && isEmergency;
                     }
@@ -542,6 +530,39 @@ export default function Home() {
         return <MunicipalSharingView settings={sharingSettings} onUpdateSettings={(updated) => setSharingSettings(updated)} />;
       case "setup":
         return <SetupWizardView steps={setupSteps} onToggleStep={handleToggleSetupStep} activeRole={activeRole} />;
+      
+      // NEW VIEW CASES
+      case "company":
+        return <CompanyAdminView />;
+      case "customers":
+        return (
+          <CustomersView 
+            onOpenCustomerPortal={(custName) => {
+              addLog(`PORTAL_SIM // SIMULATING CUSTOMER ACCESS PORTAL: ${custName.toUpperCase()}`);
+              setActiveRole("property_manager");
+              setActivePage("buildings");
+              toast.success("CUSTOMER PORTAL ACTIVE", {
+                description: `Switched view role to Property Manager for Harbour View Property Management.`
+              });
+            }} 
+          />
+        );
+      case "technicians":
+        return <TechniciansView />;
+      case "templates":
+        return <TemplatesView />;
+      case "library":
+        return <DeviceLibraryView />;
+      case "deficiency-lang":
+        return <DeficiencyLanguageView />;
+      case "import":
+        return (
+          <ImportDevicesView 
+            onImportComplete={(importedCount) => {
+              addLog(`IMPORT_SUCCESS // BULK REGISTERED ${importedCount} ASSETS INTO SYSTEM DATABASE.`);
+            }} 
+          />
+        );
       default:
         return null;
     }
@@ -668,7 +689,9 @@ export default function Home() {
       <div className="flex-1 flex min-h-0 relative">
         
         {/* Navigation Sidebar */}
-        <aside className="w-16 border-r border-cyan-500/20 bg-slate-950/95 flex flex-col items-center py-4 gap-4 z-20 shrink-0">
+        <aside className="w-16 border-r border-cyan-500/20 bg-slate-950/95 flex flex-col items-center py-4 gap-3 z-20 shrink-0 overflow-y-auto">
+          
+          {/* Standard Navigation */}
           <Button 
             variant="ghost" 
             size="icon" 
@@ -738,6 +761,83 @@ export default function Home() {
           >
             <Settings className="w-5 h-5" />
           </Button>
+
+          {/* FIRE COMPANY SPECIFIC NAVIGATION SEPARATOR */}
+          {activeRole === "fire_company" && (
+            <>
+              <div className="w-8 h-px bg-cyan-500/10 my-1" />
+              
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setActivePage("company")}
+                className={`h-10 w-10 rounded-none border ${activePage === "company" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
+                title="Company Profile & Team"
+              >
+                <Users2 className="w-5 h-5" />
+              </Button>
+
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setActivePage("customers")}
+                className={`h-10 w-10 rounded-none border ${activePage === "customers" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
+                title="Client Management"
+              >
+                <Users className="w-5 h-5" />
+              </Button>
+
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setActivePage("technicians")}
+                className={`h-10 w-10 rounded-none border ${activePage === "technicians" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
+                title="Technician Metrics"
+              >
+                <ClipboardList className="w-5 h-5" />
+              </Button>
+
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setActivePage("templates")}
+                className={`h-10 w-10 rounded-none border ${activePage === "templates" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
+                title="Inspection Checklists"
+              >
+                <FileText className="w-5 h-5 text-cyan-500/80" />
+              </Button>
+
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setActivePage("library")}
+                className={`h-10 w-10 rounded-none border ${activePage === "library" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
+                title="Device Library"
+              >
+                <Library className="w-5 h-5" />
+              </Button>
+
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setActivePage("deficiency-lang")}
+                className={`h-10 w-10 rounded-none border ${activePage === "deficiency-lang" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
+                title="Deficiency Language Library"
+              >
+                <FileCode className="w-5 h-5" />
+              </Button>
+
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setActivePage("import")}
+                className={`h-10 w-10 rounded-none border ${activePage === "import" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
+                title="CSV Bulk Device Import"
+              >
+                <Database className="w-5 h-5" />
+              </Button>
+            </>
+          )}
         </aside>
 
         {/* Dynamic View Workspace Content */}
@@ -749,31 +849,35 @@ export default function Home() {
         <span className="text-slate-500 font-bold uppercase shrink-0">TELEMETRY_LOGS //</span>
         <div className="flex-1 h-10 overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-cyan-500/20">
           {terminalLogs.map((log, i) => (
-            <div key={i} className="text-cyan-500/80 leading-tight">
-              {log}
-            </div>
+            <div key={i} className="text-cyan-500/80 leading-relaxed uppercase">{log}</div>
           ))}
-          <div ref={terminalEndRef} />
         </div>
       </footer>
 
-      {/* Deficiency Form Dialog Modal */}
+      {/* DEFICIENCY INPUT MODAL */}
       <DeficiencyModal 
         isOpen={isDeficiencyModalOpen}
         onClose={() => setIsDeficiencyModalOpen(false)}
-        onSave={handleSaveDeficiency}
-        isFailureMode={deficiencyModalIsFailure}
-        device={devices.find(d => d.id === selectedDeviceId) || null}
+        isFailure={deficiencyModalIsFailure}
+        onSubmit={handleAddDeficiency}
       />
 
-      {/* Guided Interactive Demo Walkthrough Cockpit */}
+      {/* INTERACTIVE WALKTHROUGH PANEL */}
       <DemoWalkthrough 
+        currentStep={walkthroughStep}
+        onSetStep={setWalkthroughStep}
+        completed={walkthroughCompleted}
+        onSetCompleted={setWalkthroughStepCompleted}
         activeRole={activeRole}
-        setActiveRole={(role) => {
-          setActiveRole(role);
-          addLog(`ROLE_CHANGED // SWITCHED TO: ${role.toUpperCase()}`);
-        }}
-        setPage={(page) => setActivePage(page)}
+        onSetRole={setActiveRole}
+        activePage={activePage}
+        onSetPage={setActivePage}
+        devices={devices}
+        selectedDeviceId={selectedDeviceId}
+        onSelectDevice={setSelectedDeviceId}
+        activeFloor={activeFloor}
+        onSetFloor={setActiveFloor}
+        quotes={quotes}
       />
     </div>
   );

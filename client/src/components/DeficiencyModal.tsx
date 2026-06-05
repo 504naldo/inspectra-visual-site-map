@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from "react";
-import { Device, DeficiencyHistory } from "@/lib/mock-data";
+import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,256 +11,192 @@ import { AlertTriangle, ShieldAlert, FileText, Camera, DollarSign } from "lucide
 interface DeficiencyModalProps {
   isOpen: boolean;
   onClose: () => void;
-  device: Device | null;
-  isFailureMode: boolean; // True for failed, false for warning/deficiency
-  onSave: (deficiency: Omit<DeficiencyHistory, "id" | "loggedAt" | "resolved"> & {
-    addToQuote: boolean;
-    addToReport: boolean;
-    shareWithGovernment: boolean;
-    codeReference?: string;
-    customerExplanation: string;
-    internalNote?: string;
+  isFailure: boolean; // True for failed, false for warning/deficiency
+  onSubmit: (data: {
+    priority: "low" | "medium" | "high" | "critical";
+    description: string;
+    nfpaCode: string;
+    recommendedRepair: string;
+    photoUrl?: string;
+    autoGenerateQuote: boolean;
+    autoGenerateReport: boolean;
   }) => void;
 }
 
-export default function DeficiencyModal({ isOpen, onClose, device, isFailureMode, onSave }: DeficiencyModalProps) {
+export default function DeficiencyModal({ isOpen, onClose, isFailure, onSubmit }: DeficiencyModalProps) {
   const [priority, setPriority] = useState<"low" | "medium" | "high" | "critical">("medium");
   const [description, setDescription] = useState("");
-  const [codeReference, setCodeReference] = useState("");
+  const [nfpaCode, setNfpaCode] = useState("");
   const [recommendedRepair, setRecommendedRepair] = useState("");
-  const [customerExplanation, setCustomerExplanation] = useState("");
-  const [internalNote, setInternalNote] = useState("");
-  const [addToQuote, setAddToQuote] = useState(true);
-  const [addToReport, setAddToReport] = useState(true);
-  const [shareWithGovernment, setShareWithGovernment] = useState(false);
-  const [photoPlaceholder, setPhotoPlaceholder] = useState<string | null>(null);
-
-  // Load default/suggested text when device changes
-  useEffect(() => {
-    if (device) {
-      setDescription(isFailureMode ? "FAILED ANNUAL OPERATION TEST." : "DEVICE SHOWS MINOR DEVIATIONS.");
-      setPriority(isFailureMode ? "high" : "medium");
-      setCodeReference(device.type === "Fire Extinguisher" ? "NFPA 10 // Sec 7.3" : device.type === "Smoke Detector" ? "CAN/ULC-S536 // Sec 5.7" : "NFPA 72 // Ch 14");
-      setShareWithGovernment(false);
-      
-      // Auto-populate recommended repair and customer explanation
-      if (device.type === "Smoke Detector") {
-        setRecommendedRepair("Replace smoke detector and retest.");
-        setCustomerExplanation("The smoke detector in the main corridor did not respond properly during testing. Replacement is recommended to restore detection coverage in this area.");
-        setInternalNote("Detector did not activate during smoke entry test. Confirmed circuit response from adjacent device.");
-      } else if (device.type === "Emergency Light") {
-        setRecommendedRepair("Replace battery or fixture.");
-        setCustomerExplanation("The emergency lighting unit failed the required 30-minute battery discharge test. Battery replacement is required to restore emergency illumination.");
-        setInternalNote("Battery terminals are oxidized, and cell voltage dropped quickly under load drop.");
-      } else if (device.type === "Sprinkler Riser") {
-        setRecommendedRepair("Troubleshoot supervisory circuit and restore signal to fire alarm panel.");
-        setCustomerExplanation("A sprinkler valve supervisory signal is not reporting properly to the fire alarm panel. This may prevent building staff or monitoring from being notified of an abnormal valve condition. Immediate repair is recommended.");
-        setInternalNote("Confirmed device operation at valve, signal not received at panel. Requires circuit troubleshooting.");
-        setPriority("critical");
-        setShareWithGovernment(true);
-      } else {
-        setRecommendedRepair("REPAIR / REPLACE SUB-COMPONENT.");
-        setCustomerExplanation("Device did not meet the full testing standards. Repair is recommended to maintain building compliance.");
-        setInternalNote("");
-      }
-      
-      setPhotoPlaceholder(null);
-    }
-  }, [device, isFailureMode, isOpen]);
-
-  if (!device) return null;
+  const [autoGenerateQuote, setAutoGenerateQuote] = useState(true);
+  const [autoGenerateReport, setAutoGenerateReport] = useState(true);
+  const [mockPhoto, setMockPhoto] = useState<string | undefined>(undefined);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({
-      description,
+    if (!description.trim() || !nfpaCode.trim() || !recommendedRepair.trim()) return;
+
+    onSubmit({
       priority,
-      codeReference,
+      description,
+      nfpaCode,
       recommendedRepair,
-      customerExplanation,
-      internalNote,
-      addToQuote,
-      addToReport,
-      shareWithGovernment
+      photoUrl: mockPhoto,
+      autoGenerateQuote,
+      autoGenerateReport
     });
-    onClose();
+
+    // Reset state
+    setDescription("");
+    setNfpaCode("");
+    setRecommendedRepair("");
+    setMockPhoto(undefined);
   };
 
   const handleSimulatePhoto = () => {
-    setPhotoPlaceholder("https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&w=150&q=80");
+    // Standard mock image of a broken smoke detector
+    setMockPhoto("https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&w=300&q=80");
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[550px] bg-slate-950 border border-cyan-500/30 text-cyan-400 font-mono rounded-none max-h-[90vh] overflow-y-auto">
+      <DialogContent className="bg-slate-950 border border-cyan-500 text-cyan-400 rounded-none font-mono max-w-md p-6 text-xs overflow-y-auto max-h-[90vh]">
         <DialogHeader className="border-b border-cyan-500/10 pb-3">
-          <DialogTitle className="text-sm font-bold tracking-widest flex items-center gap-2 text-rose-500 uppercase">
-            <ShieldAlert className="w-5 h-5 animate-pulse" />
-            <span>LOG_DEFICIENCY // NODE: {device.label}</span>
+          <DialogTitle className="text-cyan-300 uppercase tracking-widest text-sm font-bold flex items-center gap-2">
+            {isFailure ? <ShieldAlert className="w-5 h-5 text-rose-500" /> : <AlertTriangle className="w-5 h-5 text-amber-500" />}
+            <span>{isFailure ? "LOG_CRITICAL_FAILURE" : "LOG_COMPLIANCE_DEFICIENCY"}</span>
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 py-3 text-xs">
-          {/* Header Metadata */}
-          <div className="grid grid-cols-2 gap-3 bg-slate-900/40 p-2.5 border border-cyan-500/10 text-[10px]">
-            <div>
-              <span className="text-slate-500 font-bold uppercase">DEVICE_TYPE:</span>
-              <p className="text-cyan-300 font-bold uppercase mt-0.5">{device.type}</p>
-            </div>
-            <div>
-              <span className="text-slate-500 font-bold uppercase">LOCATION:</span>
-              <p className="text-cyan-300 font-bold uppercase mt-0.5">{device.floor} // {device.area}</p>
-            </div>
-          </div>
-
-          {/* Issue Description & Priority */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2 space-y-1.5">
-              <Label htmlFor="desc" className="text-[10px] text-slate-400 uppercase font-bold">Deficiency Description</Label>
-              <Input
-                id="desc"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="bg-slate-900 border-cyan-500/20 text-cyan-400 rounded-none h-8 text-xs focus-visible:ring-cyan-500/40"
-                required
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="priority" className="text-[10px] text-slate-400 uppercase font-bold">Priority</Label>
-              <Select value={priority} onValueChange={(val: any) => setPriority(val)}>
-                <SelectTrigger className="bg-slate-900 border-cyan-500/20 text-cyan-400 h-8 rounded-none text-xs focus:ring-cyan-500/40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-950 border-cyan-500/30 text-cyan-400 font-mono rounded-none">
-                  <SelectItem value="low" className="hover:bg-cyan-500/10 text-xs">LOW</SelectItem>
-                  <SelectItem value="medium" className="hover:bg-cyan-500/10 text-xs">MEDIUM</SelectItem>
-                  <SelectItem value="high" className="hover:bg-cyan-500/10 text-xs">HIGH</SelectItem>
-                  <SelectItem value="critical" className="hover:bg-cyan-500/10 text-xs text-rose-500">CRITICAL</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* NFPA/ULC Code Reference */}
+        <form onSubmit={handleSubmit} className="space-y-4 py-4">
+          
+          {/* Priority Level */}
           <div className="space-y-1.5">
-            <Label htmlFor="code" className="text-[10px] text-slate-400 uppercase font-bold">Regulatory Code / NFPA Reference</Label>
-            <Input
-              id="code"
-              value={codeReference}
-              onChange={(e) => setCodeReference(e.target.value.toUpperCase())}
-              className="bg-slate-900 border-cyan-500/20 text-cyan-400 rounded-none h-8 text-xs focus-visible:ring-cyan-500/40 uppercase"
-              placeholder="E.G. NFPA 72 SECTION 14.4"
+            <Label className="text-slate-500 uppercase font-bold text-[9px]">Priority Level</Label>
+            <Select 
+              value={priority} 
+              onValueChange={(val: any) => setPriority(val)}
+            >
+              <SelectTrigger className="bg-slate-900 border-cyan-500/20 text-cyan-400 rounded-none text-xs h-9">
+                <SelectValue placeholder="Select priority" />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-950 border-cyan-500 text-cyan-400 rounded-none text-xs font-mono">
+                <SelectItem value="low">LOW (MAINTENANCE)</SelectItem>
+                <SelectItem value="medium">MEDIUM (RECOMMENDED)</SelectItem>
+                <SelectItem value="high">HIGH (COMPLIANCE GAP)</SelectItem>
+                <SelectItem value="critical">CRITICAL (LIFE-SAFETY ALARM)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* NFPA Code Reference */}
+          <div className="space-y-1.5">
+            <Label className="text-slate-500 uppercase font-bold text-[9px]">NFPA Standard / Local Fire Code</Label>
+            <Input 
+              value={nfpaCode}
+              onChange={(e) => setNfpaCode(e.target.value)}
+              placeholder="e.g., NFPA 72 (14.4.5) / Vancouver Fire Bylaw 4.2"
+              className="bg-slate-900 border-cyan-500/20 text-cyan-400 rounded-none text-xs h-9"
+              required
+            />
+          </div>
+
+          {/* Deficiency Description */}
+          <div className="space-y-1.5">
+            <Label className="text-slate-500 uppercase font-bold text-[9px]">Plain-Language Deficiency Description</Label>
+            <Textarea 
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe the issue in clear language for the property owner..."
+              className="bg-slate-900 border-cyan-500/20 text-cyan-400 rounded-none text-xs uppercase"
+              rows={3}
+              required
             />
           </div>
 
           {/* Recommended Repair */}
           <div className="space-y-1.5">
-            <Label htmlFor="repair" className="text-[10px] text-slate-400 uppercase font-bold">Recommended Repair Action</Label>
-            <Input
-              id="repair"
+            <Label className="text-slate-500 uppercase font-bold text-[9px]">Recommended Compliance Repair</Label>
+            <Input 
               value={recommendedRepair}
               onChange={(e) => setRecommendedRepair(e.target.value)}
-              className="bg-slate-900 border-cyan-500/20 text-cyan-400 rounded-none h-8 text-xs focus-visible:ring-cyan-500/40"
+              placeholder="e.g., Replace defective smoke detector head assembly"
+              className="bg-slate-900 border-cyan-500/20 text-cyan-400 rounded-none text-xs uppercase h-9"
               required
             />
           </div>
 
-          {/* Customer Facing Explanation */}
+          {/* Photo Attachment */}
           <div className="space-y-1.5">
-            <Label htmlFor="cust" className="text-[10px] text-slate-400 uppercase font-bold">Customer-Facing Explanation (Plain Language)</Label>
-            <Textarea
-              id="cust"
-              value={customerExplanation}
-              onChange={(e) => setCustomerExplanation(e.target.value)}
-              className="bg-slate-900 border-cyan-500/20 text-cyan-400 rounded-none min-h-[60px] text-xs focus-visible:ring-cyan-500/40"
-              required
-            />
-          </div>
-
-          {/* Internal Tech Notes */}
-          <div className="space-y-1.5">
-            <Label htmlFor="internal" className="text-[10px] text-slate-400 uppercase font-bold">Internal Technician Notes (Not Shared with Client)</Label>
-            <Textarea
-              id="internal"
-              value={internalNote}
-              onChange={(e) => setInternalNote(e.target.value)}
-              placeholder="E.G. BRACKET CORRODED, SPARE NOT IN VAN, ORDER PART #SD-MIRCOM."
-              className="bg-slate-900 border-cyan-500/20 text-cyan-400 rounded-none min-h-[50px] text-xs placeholder:text-slate-700 focus-visible:ring-cyan-500/40"
-            />
-          </div>
-
-          {/* Workflow checkboxes & Photo */}
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between pt-2 border-t border-cyan-500/10">
-            <div className="flex flex-col gap-2.5">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="quote"
-                  checked={addToQuote}
-                  onCheckedChange={(checked) => setAddToQuote(checked === true)}
-                  className="border-cyan-500/30 data-[state=checked]:bg-cyan-500 data-[state=checked]:text-slate-950 rounded-none"
-                />
-                <Label htmlFor="quote" className="text-[10px] text-slate-300 font-bold uppercase flex items-center gap-1">
-                  <DollarSign className="w-3 h-3 text-cyan-500" /> AUTO_GENERATE_QUOTE_ITEM
-                </Label>
+            <Label className="text-slate-500 uppercase font-bold text-[9px]">Field Photo Attachment</Label>
+            {mockPhoto ? (
+              <div className="relative border border-cyan-500/20 p-1 bg-slate-900">
+                <img src={mockPhoto} alt="Deficiency" className="w-full h-32 object-cover" />
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  onClick={() => setMockPhoto(undefined)}
+                  className="absolute top-2 right-2 bg-slate-950/80 hover:bg-rose-950 text-cyan-400 hover:text-rose-400 rounded-none h-6 px-2 text-[8px]"
+                >
+                  REMOVE
+                </Button>
               </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="report"
-                  checked={addToReport}
-                  onCheckedChange={(checked) => setAddToReport(checked === true)}
-                  className="border-cyan-500/30 data-[state=checked]:bg-cyan-500 data-[state=checked]:text-slate-950 rounded-none"
-                />
-                <Label htmlFor="report" className="text-[10px] text-slate-300 font-bold uppercase flex items-center gap-1">
-                  <FileText className="w-3 h-3 text-cyan-500" /> INCLUDE_IN_COMPLIANCE_REPORT
-                </Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="shareGov"
-                  checked={shareWithGovernment}
-                  onCheckedChange={(checked) => setShareWithGovernment(checked === true)}
-                  className="border-cyan-500/30 data-[state=checked]:bg-cyan-500 data-[state=checked]:text-slate-950 rounded-none"
-                />
-                <Label htmlFor="shareGov" className="text-[10px] text-slate-300 font-bold uppercase flex items-center gap-1">
-                  <ShieldAlert className="w-3 h-3 text-rose-500" /> SHARE WITH GOVERNMENT IF CRITICAL
-                </Label>
-              </div>
-            </div>
-
-            {/* Photo upload mock */}
-            <div className="flex items-center gap-2">
-              <Button
+            ) : (
+              <Button 
                 type="button"
-                variant="outline"
-                size="sm"
                 onClick={handleSimulatePhoto}
-                className="h-8 rounded-none text-[10px] font-bold border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 flex items-center gap-1.5"
+                className="w-full h-10 rounded-none bg-slate-900 border border-cyan-500/20 text-slate-500 hover:text-cyan-400 hover:bg-slate-900/60 font-bold flex items-center justify-center gap-2"
               >
-                <Camera className="w-3.5 h-3.5" />
-                {photoPlaceholder ? "PHOTO_ATTACHED" : "ATTACH_PHOTO"}
+                <Camera className="w-4 h-4" />
+                <span>SIMULATE_PHOTO_UPLOAD</span>
               </Button>
-              {photoPlaceholder && (
-                <div className="w-8 h-8 border border-cyan-500/30 bg-slate-900 overflow-hidden">
-                  <img src={photoPlaceholder} alt="deficiency thumbnail" className="w-full h-full object-cover" />
-                </div>
-              )}
+            )}
+          </div>
+
+          {/* Automation Checkboxes */}
+          <div className="space-y-2 border-t border-cyan-500/10 pt-3">
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="autoQuote" 
+                checked={autoGenerateQuote} 
+                onCheckedChange={(checked: any) => setAutoGenerateQuote(!!checked)}
+                className="border-cyan-500/30 text-cyan-400"
+              />
+              <label htmlFor="autoQuote" className="text-[10px] text-slate-400 font-bold uppercase cursor-pointer flex items-center gap-1.5">
+                <DollarSign className="w-3.5 h-3.5 text-cyan-500" />
+                <span>Auto-Generate Repair Quote Item</span>
+              </label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="autoReport" 
+                checked={autoGenerateReport} 
+                onCheckedChange={(checked: any) => setAutoGenerateReport(!!checked)}
+                className="border-cyan-500/30 text-cyan-400"
+              />
+              <label htmlFor="autoReport" className="text-[10px] text-slate-400 font-bold uppercase cursor-pointer flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-cyan-500" />
+                <span>Auto-Draft Compliance Report</span>
+              </label>
             </div>
           </div>
 
+          {/* Footer Actions */}
           <DialogFooter className="border-t border-cyan-500/10 pt-3 gap-2">
-            <Button
-              type="button"
-              variant="ghost"
+            <Button 
+              type="button" 
+              variant="ghost" 
               onClick={onClose}
-              className="rounded-none text-xs hover:bg-cyan-500/10 text-slate-400"
+              className="rounded-none border border-cyan-500/10 text-slate-500 hover:text-cyan-400"
             >
-              ABORT_LOG
+              CANCEL
             </Button>
-            <Button
+            <Button 
               type="submit"
-              className="rounded-none text-xs bg-rose-500 hover:bg-rose-600 text-slate-950 font-bold shadow-[0_0_10px_rgba(244,63,94,0.3)]"
+              className="rounded-none bg-cyan-950 border border-cyan-500 text-cyan-400 hover:bg-cyan-900 font-bold"
             >
-              COMMIT_DEFICIENCY
+              SUBMIT_DEFICIENCY
             </Button>
           </DialogFooter>
         </form>
