@@ -245,7 +245,7 @@ export default function SystemArchitectureView() {
     }
   ];
 
-  const [exportFormat, setExportFormat] = useState<"prisma" | "knex" | "sql">("prisma");
+  const [exportFormat, setExportFormat] = useState<"prisma" | "knex" | "sql" | "graphql">("prisma");
   const [copiedSchema, setCopiedSchema] = useState(false);
 
   // ERD Diagram State
@@ -338,15 +338,94 @@ export default function SystemArchitectureView() {
   };
 
   const handleExportErdLayout = () => {
-    const erdLayout = {
-      tables: erdTables,
-      relations: erdRelations
-    };
-    const blob = new Blob([JSON.stringify(erdLayout, null, 2)], { type: "application/json" });
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ tables: erdTables, relations: erdRelations }, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", "inspectra_erd_layout.json");
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  const handleDownloadErdSVG = () => {
+    // Generate full inline vector SVG representing the live ERD Canvas!
+    const canvasWidth = 800;
+    const canvasHeight = 450;
+    
+    // Construct SVG nodes and connection lines dynamically
+    let svgLines = "";
+    erdRelations.forEach(rel => {
+      const fromTable = erdTables.find(t => t.id === rel.from);
+      const toTable = erdTables.find(t => t.id === rel.to);
+      if (fromTable && toTable) {
+        const startX = fromTable.x + 80;
+        const startY = fromTable.y + 60;
+        const endX = toTable.x + 80;
+        const endY = toTable.y + 60;
+        const midX = (startX + endX) / 2;
+        const midY = (startY + endY) / 2;
+        
+        svgLines += `
+    <!-- Relation ${rel.from} -> ${rel.to} -->
+    <line x1="${startX}" y1="${startY}" x2="${endX}" y2="${endY}" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#arrow)" />
+    <rect x="${midX - 15}" y="${midY - 8}" width="30" height="16" fill="#020617" stroke="#06b6d4" stroke-width="1" rx="3" />
+    <text x="${midX}" y="${midY + 3}" fill="#22d3ee" font-family="monospace" font-size="8" font-weight="bold" text-anchor="middle">${rel.type}</text>`;
+      }
+    });
+
+    let svgTables = "";
+    erdTables.forEach(t => {
+      const isSelected = selectedErdTable === t.id;
+      const cardHeight = 35 + t.fields.length * 15;
+      const strokeColor = isSelected ? "#22d3ee" : "#1e293b";
+      const headerBg = isSelected ? "#083344" : "#0f172a";
+      
+      let fieldsSvg = "";
+      t.fields.forEach((f, idx) => {
+        const isPk = f.includes("(PK)");
+        const isFk = f.includes("(FK)");
+        let fieldColor = "#94a3b8";
+        if (isPk) fieldColor = "#f59e0b";
+        else if (isFk) fieldColor = "#a855f7";
+        
+        fieldsSvg += `
+      <text x="${t.x + 10}" y="${t.y + 45 + idx * 15}" fill="${fieldColor}" font-family="monospace" font-size="9">${f}</text>`;
+      });
+
+      svgTables += `
+    <!-- Table ${t.name} -->
+    <rect x="${t.x}" y="${t.y}" width="160" height="${cardHeight}" fill="#020617" stroke="${strokeColor}" stroke-width="1.5" rx="4" />
+    <rect x="${t.x}" y="${t.y}" width="160" height="28" fill="${headerBg}" stroke="${strokeColor}" stroke-width="1.5" rx="4" />
+    <text x="${t.x + 10}" y="${t.y + 18}" fill="#22d3ee" font-family="monospace" font-size="10" font-weight="bold">${t.name.toUpperCase()}</text>
+    ${fieldsSvg}`;
+    });
+
+    const fullSvgContent = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${canvasWidth}" height="${canvasHeight}" viewBox="0 0 ${canvasWidth} ${canvasHeight}">
+  <style>
+    rect { filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.5)); }
+  </style>
+  <rect width="100%" height="100%" fill="#020617" />
+  <!-- Grid background -->
+  <defs>
+    <pattern id="grid" width="16" height="16" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="rgba(6,182,212,0.07)" />
+    </pattern>
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#06b6d4" />
+    </marker>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#grid)" />
+  
+  ${svgLines}
+  ${svgTables}
+</svg>`;
+
+    const blob = new Blob([fullSvgContent], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "inspectra_erd_layout.json";
+    link.download = "inspectra_life_safety_erd.svg";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -619,19 +698,51 @@ export default function SystemArchitectureView() {
   };
 
   const handleDownloadCSV = (tableName: string) => {
-    const text = getSeedCSVData(tableName);
-    const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
+    const csvContent = getSeedCSVData(tableName);
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = url;
-    link.download = `seed_${tableName}.csv`;
+    link.setAttribute("href", url);
+    link.setAttribute("download", `seed_${tableName}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url);
   };
 
-  const generateSchemaText = (format: "prisma" | "knex" | "sql") => {
+  const handleDownloadSQLInsert = (tableName: string) => {
+    const csvContent = getSeedCSVData(tableName);
+    const lines = csvContent.trim().split("\n");
+    if (lines.length < 2) return;
+    
+    const headers = lines[0].split(",");
+    let sqlInserts = `-- SEED DATA FOR TABLE: ${tableName}\n-- GENERATED BY INSPECTRA SYSTEM ARCHITECTURE EXPORTER\n\n`;
+    
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(",").map(v => {
+        const val = v.trim();
+        if (val === "" || val === "NULL") return "NULL";
+        if (val === "true") return "TRUE";
+        if (val === "false") return "FALSE";
+        // Check if numeric
+        if (!isNaN(Number(val)) && val.indexOf("-") === -1 && val.indexOf(":") === -1) return val;
+        // Escape quotes and wrap in string quotes
+        return `'${val.replace(/'/g, "''")}'`;
+      });
+      
+      sqlInserts += `INSERT INTO ${tableName} (${headers.join(", ")}) VALUES (${values.join(", ")});\n`;
+    }
+    
+    const blob = new Blob([sqlInserts], { type: "text/plain;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `seed_${tableName}.sql`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const generateSchemaText = (format: "prisma" | "knex" | "sql" | "graphql") => {
     // Dynamically generate schemas from live ERD tables and relations state
     if (format === "prisma") {
       let schema = `datasource db {
@@ -790,6 +901,63 @@ generator client {
       schema += `\n);\n`;
     });
 
+    if (format === "graphql") {
+      let schema = `# GRAPHQL SCHEMA DEFINITION LANGUAGE (SDL)\n# GENERATED BY INSPECTRA SYSTEM ARCHITECTURE EXPORTER\n\n`;
+      
+      erdTables.forEach(t => {
+        schema += `type ${t.name.charAt(0) + t.name.slice(1).toLowerCase()} {\n`;
+        t.fields.forEach(f => {
+          const parts = f.split(" (");
+          const name = parts[0].trim();
+          const rest = parts[1] ? parts[1].replace(")", "") : "";
+          const typeLower = rest.toLowerCase();
+
+          let gqlType = "String";
+          if (typeLower.includes("pk")) {
+            gqlType = "ID!";
+          } else if (typeLower.includes("fk")) {
+            gqlType = "String!";
+          } else if (typeLower.includes("int")) {
+            gqlType = "Int";
+          } else if (typeLower.includes("decimal") || typeLower.includes("numeric")) {
+            gqlType = "Float";
+          } else if (typeLower.includes("boolean")) {
+            gqlType = "Boolean!";
+          } else if (typeLower.includes("timestamp") || typeLower.includes("date")) {
+            gqlType = "String";
+          }
+
+          // Format camelCase
+          const camelName = name.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+          schema += `  ${camelName}: ${gqlType}\n`;
+        });
+
+        // Add relation objects
+        const outgoing = erdRelations.filter(r => r.from === t.id);
+        outgoing.forEach(r => {
+          const targetModel = r.to.charAt(0) + r.to.slice(1).toLowerCase();
+          if (r.type === "1:N") {
+            schema += `  ${r.to}: [${targetModel}]\n`;
+          } else {
+            schema += `  ${r.to.slice(0, -1)}: ${targetModel}\n`;
+          }
+        });
+
+        schema += `}\n\n`;
+      });
+
+      // Add Queries and Mutations boilerplate
+      schema += `type Query {\n`;
+      erdTables.forEach(t => {
+        const modelName = t.name.charAt(0) + t.name.slice(1).toLowerCase();
+        schema += `  get${modelName}(id: ID!): ${modelName}\n`;
+        schema += `  list${modelName}s: [${modelName}]\n`;
+      });
+      schema += `}\n`;
+
+      return schema;
+    }
+
     return schema;
   };
 
@@ -802,11 +970,12 @@ generator client {
 
   const handleDownloadSchema = () => {
     const text = generateSchemaText(exportFormat);
-    const extensions = { prisma: "prisma", knex: "js", sql: "sql" };
+    const extensions = { prisma: "prisma", knex: "js", sql: "sql", graphql: "graphql" };
     const filenames = {
       prisma: "schema.prisma",
       knex: "20260614_init_schema.js",
-      sql: "schema.sql"
+      sql: "schema.sql",
+      graphql: "schema.graphql"
     };
     
     const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
@@ -959,6 +1128,13 @@ generator client {
                       >
                         <Download className="w-3 h-3 mr-1.5" />
                         EXPORT LAYOUT JSON
+                      </Button>
+                      <Button
+                        onClick={handleDownloadErdSVG}
+                        className="h-7 px-3 bg-cyan-950 border border-cyan-500 text-cyan-400 rounded-none hover:bg-cyan-500/20 text-[9px] font-bold uppercase"
+                      >
+                        <Download className="w-3 h-3 mr-1.5" />
+                        DOWNLOAD SVG DIAGRAM
                       </Button>
                     </div>
                   </div>
@@ -1913,13 +2089,22 @@ generator client {
                     {getSeedCSVData(seedPreviewTable)}
                   </div>
 
-                  <Button
-                    onClick={() => handleDownloadCSV(seedPreviewTable)}
-                    className="w-full h-8 bg-cyan-950 border border-cyan-500 text-cyan-400 rounded-none hover:bg-cyan-500/20 text-[9px] font-bold uppercase flex items-center justify-center gap-1.5"
-                  >
-                    <Download className="w-3 h-3" />
-                    <span>DOWNLOAD SEED_{seedPreviewTable.toUpperCase()}.CSV</span>
-                  </Button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      onClick={() => handleDownloadCSV(seedPreviewTable)}
+                      className="w-full h-8 bg-cyan-950 border border-cyan-500 text-cyan-400 rounded-none hover:bg-cyan-500/20 text-[9px] font-bold uppercase flex items-center justify-center gap-1"
+                    >
+                      <Download className="w-3 h-3" />
+                      <span>CSV</span>
+                    </Button>
+                    <Button
+                      onClick={() => handleDownloadSQLInsert(seedPreviewTable)}
+                      className="w-full h-8 bg-cyan-950 border border-cyan-500 text-cyan-400 rounded-none hover:bg-cyan-500/20 text-[9px] font-bold uppercase flex items-center justify-center gap-1"
+                    >
+                      <Download className="w-3 h-3" />
+                      <span>SQL INSERT</span>
+                    </Button>
+                  </div>
 
                 </CardContent>
               </Card>
@@ -1979,11 +2164,12 @@ generator client {
                 <CardContent className="p-4 flex-1 flex flex-col gap-4 min-h-0">
                   
                   {/* Format Selector */}
-                  <div className="grid grid-cols-3 gap-1 bg-slate-900/80 p-1 border border-cyan-500/10">
+                  <div className="grid grid-cols-4 gap-1 bg-slate-900/80 p-1 border border-cyan-500/10">
                     {[
                       { id: "prisma", label: "Prisma" },
                       { id: "knex", label: "Knex.js" },
-                      { id: "sql", label: "Postgres SQL" }
+                      { id: "sql", label: "Postgres SQL" },
+                      { id: "graphql", label: "GraphQL SDL" }
                     ].map((fmt) => (
                       <button
                         key={fmt.id}
