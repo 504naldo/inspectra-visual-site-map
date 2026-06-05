@@ -433,38 +433,106 @@ export default function SystemArchitectureView() {
   };
 
   const getSeedCSVData = (tableName: string) => {
-    if (tableName === "companies") {
-      return `id,name,logo_url,address,phone,email,created_at
-ee9c3d2d-27f5-4672-9114-1e293b2dc02d,Eagle Eye Fire & Life Safety,/manus-storage/logo.png,"Suite 400, 1055 W Georgia St, Vancouver, BC",604-555-0199,operations@eagleeyefire.ca,2026-01-15 08:00:00`;
+    // Find the matching table in our live ERD state
+    const targetTable = erdTables.find(t => t.id === tableName);
+    if (!targetTable) {
+      return "id,status,created_at\n1,active,2026-06-05 08:00:00";
     }
-    if (tableName === "users") {
-      return `id,company_id,name,email,password_hash,role_id,asttbc_number,status,created_at
-u1b2c3d4-4672-9114-1e29-3b2dc02dc02d,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,R. Daniels,r.daniels@eagleeyefire.ca,$2b$12$SecureHashDaniels...,role_tech_uuid,ASTTBC-2021-9981,active,2026-01-15 08:30:00
-u5f6g7h8-4672-9114-1e29-3b2dc02dc02d,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,A. Singh,a.singh@eagleeyefire.ca,$2b$12$SecureHashSingh...,role_tech_uuid,ASTTBC-2023-1102,active,2026-01-16 09:00:00
-u9i0j1k2-4672-9114-1e29-3b2dc02dc02d,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,M. Chen,m.chen@eagleeyefire.ca,$2b$12$SecureHashChen...,role_admin_uuid,ASTTBC-2018-4451,active,2026-01-15 08:15:00`;
+
+    // Extract raw column names from fields
+    const columns = targetTable.fields.map(f => f.split(" (")[0].trim());
+    const header = columns.join(",");
+
+    // Generate dynamic mock values based on the field types in erdTables
+    const getMockValue = (colName: string, fieldDef: string, rowIndex: number) => {
+      const defLower = fieldDef.toLowerCase();
+      
+      if (defLower.includes("pk")) {
+        if (tableName === "companies") return "ee9c3d2d-27f5-4672-9114-1e293b2dc02d";
+        if (tableName === "users") return rowIndex === 0 ? "u1b2c3d4-4672-9114-1e29-3b2dc02dc02d" : "u5f6g7h8-4672-9114-1e29-3b2dc02dc02d";
+        if (tableName === "customers") return rowIndex === 0 ? "cust_hva_uuid" : "cust_pmg_uuid";
+        if (tableName === "buildings") return rowIndex === 0 ? "bld_hva_uuid" : "bld_pmg_uuid";
+        if (tableName === "devices") return rowIndex === 0 ? "dev_sd_10_uuid" : "dev_supv_01_uuid";
+        if (tableName === "deficiencies") return rowIndex === 0 ? "def_sd_10_uuid" : "def_supv_01_uuid";
+        return `mock-uuid-${tableName}-${rowIndex}`;
+      }
+
+      if (defLower.includes("fk")) {
+        if (colName.includes("company")) return "ee9c3d2d-27f5-4672-9114-1e293b2dc02d";
+        if (colName.includes("customer")) return rowIndex === 0 ? "cust_hva_uuid" : "cust_pmg_uuid";
+        if (colName.includes("building")) return rowIndex === 0 ? "bld_hva_uuid" : "bld_pmg_uuid";
+        if (colName.includes("floor")) return rowIndex === 0 ? "floor_main_uuid" : "floor_p1_uuid";
+        if (colName.includes("device")) return rowIndex === 0 ? "dev_sd_10_uuid" : "dev_supv_01_uuid";
+        if (colName.includes("user") || colName.includes("by") || colName.includes("creator")) return "u1b2c3d4-4672-9114-1e29-3b2dc02dc02d";
+        return "fk-reference-uuid";
+      }
+
+      // Handle specific column names
+      if (colName === "name") {
+        if (tableName === "companies") return "Eagle Eye Fire & Life Safety";
+        if (tableName === "users") return rowIndex === 0 ? "R. Daniels" : "A. Singh";
+        if (tableName === "customers") return rowIndex === 0 ? "Harbour View Property Management" : "Pacific Medical Group";
+        if (tableName === "buildings") return rowIndex === 0 ? "Harbour View Apartments" : "Pacific Medical Center";
+        return `Mock Name ${rowIndex + 1}`;
+      }
+
+      if (colName === "email") {
+        if (tableName === "companies") return "operations@eagleeyefire.ca";
+        if (tableName === "users") return rowIndex === 0 ? "r.daniels@eagleeyefire.ca" : "a.singh@eagleeyefire.ca";
+        if (tableName === "customers") return rowIndex === 0 ? "reports@ewandf.ca" : "s.jenkins@pacmedical.ca";
+        return "info@example.com";
+      }
+
+      if (colName === "phone") {
+        if (tableName === "companies") return "604-555-0199";
+        if (tableName === "users") return "604-555-0102";
+        if (tableName === "customers") return rowIndex === 0 ? "604-555-0144" : "604-555-0177";
+        return "604-555-0000";
+      }
+
+      if (colName === "address" || colName === "billing_address") {
+        if (tableName === "companies") return '"Suite 400, 1055 W Georgia St, Vancouver, BC"';
+        if (tableName === "customers") return rowIndex === 0 ? '"1200 - 555 Hastings St, Vancouver, BC"' : '"450 - 1200 West Broadway, Vancouver, BC"';
+        if (tableName === "buildings") return rowIndex === 0 ? '"1640 Harbour View Dr, Vancouver, BC"' : '"1200 West Broadway, Vancouver, BC"';
+        return '"123 Main St, Vancouver, BC"';
+      }
+
+      if (colName === "device_code") return rowIndex === 0 ? "SD-M-10" : "SUPV-D-01";
+      if (colName === "location") return rowIndex === 0 ? "Main Corridor East" : "Main Sprinkler Riser Room";
+      if (colName === "map_x") return rowIndex === 0 ? "45.20" : "18.40";
+      if (colName === "map_y") return rowIndex === 0 ? "38.60" : "76.10";
+      if (colName === "status" || colName === "portal_status") {
+        if (tableName === "devices") return rowIndex === 0 ? "failed" : "deficient";
+        if (tableName === "deficiencies") return "open";
+        return "active";
+      }
+      if (colName === "priority") return rowIndex === 0 ? "critical" : "warning";
+      if (colName === "technical_description") return rowIndex === 0 ? "Smoke detector failed to activate control panel relays" : "Sprinkler supervisory pressure switch leaking";
+      if (colName === "customer_description") return rowIndex === 0 ? "Smoke detector in main corridor failed testing and needs replacement" : "Supervisory switch is leaking slowly and needs adjustment";
+
+      // Type-based defaults
+      if (defLower.includes("varchar")) return `Sample_Varchar_${rowIndex + 1}`;
+      if (defLower.includes("text")) return `"Sample long-form description text for row ${rowIndex + 1}"`;
+      if (defLower.includes("int")) return String(rowIndex === 0 ? 4 : 6);
+      if (defLower.includes("decimal") || defLower.includes("numeric")) return "125.00";
+      if (defLower.includes("boolean")) return "true";
+      if (defLower.includes("timestamp") || defLower.includes("date")) return "2026-06-05 09:00:00";
+
+      return `value_${rowIndex + 1}`;
+    };
+
+    // Generate 2 mock rows for preview and CSV exports
+    const numRows = tableName === "companies" ? 1 : 2;
+    const rows = [];
+    for (let i = 0; i < numRows; i++) {
+      const rowValues = targetTable.fields.map(f => {
+        const colName = f.split(" (")[0].trim();
+        return getMockValue(colName, f, i);
+      });
+      rows.push(rowValues.join(","));
     }
-    if (tableName === "customers") {
-      return `id,company_id,name,billing_address,primary_contact,email,phone,portal_status,created_at
-cust_hva_uuid,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,Harbour View Property Management,"1200 - 555 Hastings St, Vancouver, BC",Ewan Davidson,reports@ewandf.ca,604-555-0144,active,2026-02-01 10:00:00
-cust_pmg_uuid,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,Pacific Medical Group,"450 - 1200 West Broadway, Vancouver, BC",Dr. Sarah Jenkins,s.jenkins@pacmedical.ca,604-555-0177,active,2026-02-15 11:00:00
-cust_crc_uuid,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,City of Richmond Facilities,"6911 No. 3 Road, Richmond, BC",James Vance,j.vance@richmond.ca,604-276-4000,inactive,2026-03-01 09:00:00`;
-    }
-    if (tableName === "buildings") {
-      return `id,customer_id,name,address,occupancy_type,num_floors,compliance_status,created_at
-bld_hva_uuid,cust_hva_uuid,Harbour View Apartments,"1640 Harbour View Dr, Vancouver, BC",Residential (Group C),4,deficient,2026-02-01 10:30:00
-bld_pmg_uuid,cust_pmg_uuid,Pacific Medical Center,"1200 West Broadway, Vancouver, BC",Care (Group B2),6,compliant,2026-02-15 11:30:00
-bld_crc_uuid,cust_crc_uuid,Richmond Civic Center,"6911 No. 3 Road, Richmond, BC",Assembly (Group A2),3,compliant,2026-03-01 09:30:00`;
-    }
-    if (tableName === "devices") {
-      return `id,company_id,customer_id,building_id,floor_id,device_code,location,map_x,map_y,status,last_tested_at
-dev_sd_10_uuid,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,cust_hva_uuid,bld_hva_uuid,floor_main_uuid,SD-M-10,Main Corridor East,45.20,38.60,failed,2026-06-04 10:15:00
-dev_supv_01_uuid,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,cust_hva_uuid,bld_hva_uuid,floor_p1_uuid,SUPV-D-01,Main Sprinkler Riser Room,18.40,76.10,deficient,2026-06-04 09:30:00
-dev_facp_01_uuid,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,cust_hva_uuid,bld_hva_uuid,floor_main_uuid,FACP-M-01,Main Lobby Entrance,12.50,15.20,passed,2026-06-04 09:00:00`;
-    }
-    // Default to deficiencies
-    return `id,company_id,building_id,device_id,priority,technical_description,customer_description,status,created_at
-def_sd_10_uuid,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,bld_hva_uuid,dev_sd_10_uuid,critical,Smoke detector failed to activate control panel relays,Smoke detector in main corridor failed testing and needs replacement,open,2026-06-04 10:20:00
-def_supv_01_uuid,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,bld_hva_uuid,dev_supv_01_uuid,warning,Sprinkler supervisory pressure switch leaking,Supervisory switch is leaking slowly and needs adjustment,open,2026-06-04 09:45:00`;
+
+    return `${header}\n${rows.join("\n")}`;
   };
 
   const handleDownloadCSV = (tableName: string) => {
