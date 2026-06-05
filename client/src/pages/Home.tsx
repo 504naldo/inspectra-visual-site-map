@@ -17,6 +17,7 @@ import DeficienciesView from "@/components/DeficienciesView";
 
 // New Views
 import CompanyAdminView from "@/components/CompanyAdminView";
+import SystemArchitectureView from "@/components/SystemArchitectureView";
 import CustomersView from "@/components/CustomersView";
 import TechniciansView from "@/components/TechniciansView";
 import TemplatesView from "@/components/TemplatesView";
@@ -32,7 +33,7 @@ import {
   ArrowRight, Key, Search, Play, Pause, RotateCcw, LayoutDashboard, 
   Map as MapIcon, FileText, DollarSign, ShieldCheck, Sun, Moon, 
   User, Building, ShieldAlert as GovIcon, PhoneCall, AlertTriangle, Settings, CheckCircle2,
-  Users, Users2, Library, FileCode, Database, ClipboardList
+  Users, Users2, Library, FileCode, Database, ClipboardList, Cpu
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -46,7 +47,7 @@ export default function Home() {
   
   // Navigation & View State
   const [activePage, setActivePage] = useState<string>("map"); 
-  // "buildings" | "map" | "deficiencies" | "reports" | "quotes" | "sharing" | "setup" | "company" | "customers" | "technicians" | "templates" | "library" | "deficiency-lang" | "import"
+  // "buildings" | "map" | "deficiencies" | "reports" | "quotes" | "sharing" | "setup" | "company" | "customers" | "technicians" | "templates" | "library" | "deficiency-lang" | "import" | "architecture"
   const [activeFloor, setActiveFloor] = useState<string>("Main Floor");
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   
@@ -386,6 +387,8 @@ export default function Home() {
   // Render the proper active page view
   const renderActivePageContent = () => {
     switch (activePage) {
+      case "architecture":
+        return <SystemArchitectureView />;
       case "buildings":
         return (
           <BuildingsView 
@@ -760,6 +763,16 @@ export default function Home() {
             title="Setup/Onboarding Wizard"
           >
             <Settings className="w-5 h-5" />
+          </Button>
+
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setActivePage("architecture")}
+            className={`h-10 w-10 rounded-none border ${activePage === "architecture" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
+            title="System Architecture & Database Schema"
+          >
+            <Cpu className="w-5 h-5" />
           </Button>
 
           {/* FIRE COMPANY SPECIFIC NAVIGATION SEPARATOR */}
