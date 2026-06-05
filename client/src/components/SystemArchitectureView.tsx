@@ -456,6 +456,7 @@ export default function SystemArchitectureView() {
   const [seedingLogs, setSeedingLogs] = useState<string[]>([]);
   const [isSeeding, setIsSeeding] = useState(false);
   const [seedPreviewTable, setSeedPreviewTable] = useState<string>("companies");
+  const [seedRowCount, setSeedRowCount] = useState<number>(100);
 
   const runSeedingSimulation = () => {
     setIsSeeding(true);
@@ -474,20 +475,20 @@ export default function SystemArchitectureView() {
       "CLEANING_DB // TABLE 'floors' TRUNCATED.",
       "CLEANING_DB // TABLE 'devices' TRUNCATED.",
       "CLEANING_DB // TABLE 'deficiencies' TRUNCATED.",
-      "SEED_START // INJECTING SEED DATASETS...",
+      `SEED_START // INJECTING SEED DATASETS [TARGET_ROW_COUNT: ${seedRowCount}]...`,
       "SEED_COMPANIES // INJECTED 1 COMPANY RECORD [EAGLE EYE FIRE & LIFE SAFETY]",
       "SEED_ROLES // INJECTED 3 ROLE DEFINITIONS [ADMIN, TECHNICIAN, CUSTOMER]",
-      "SEED_USERS // INJECTED 5 USER ACCOUNTS WITH SECURE PASSWORD HASHES",
-      "SEED_CUSTOMERS // INJECTED 4 REALISTIC PROPERTY MANAGEMENT CUSTOMERS",
-      "SEED_BUILDINGS // INJECTED 4 MULTI-STORY BUILDINGS [HARBOUR VIEW APTS, PACIFIC MEDICAL, ETC]",
-      "SEED_FLOORS // INJECTED 12 FLOOR Blueprints AND SEQUENCE INDICES",
-      "SEED_DEVICES // INJECTING 85 COMPLIANCE HARDWARE ASSETS...",
-      "SEED_DEVICES // 85 COMPLIANCE HARDWARE ASSETS PLOTTED TO BLUEPRINT COORDINATES",
-      "SEED_DEFICIENCIES // INJECTED ACTIVE DEFICIENCIES [SD-M-10 (CRITICAL FAILURE), SUPV-D-01 (WARNING)]",
-      "SEED_REPORTS // INJECTED 3 COMPLIANCE REGISTRY RECORDS",
+      `SEED_USERS // INJECTED ${Math.max(2, Math.round(seedRowCount * 0.05))} USER ACCOUNTS WITH SECURE PASSWORD HASHES`,
+      `SEED_CUSTOMERS // INJECTED ${Math.max(2, Math.round(seedRowCount * 0.05))} REALISTIC PROPERTY MANAGEMENT CUSTOMERS`,
+      `SEED_BUILDINGS // INJECTED ${Math.max(2, Math.round(seedRowCount * 0.05))} MULTI-STORY BUILDINGS [HARBOUR VIEW APTS, PACIFIC MEDICAL, ETC]`,
+      `SEED_FLOORS // INJECTED ${Math.max(4, Math.round(seedRowCount * 0.12))} FLOOR BLUEPRINTS AND SEQUENCE INDICES`,
+      `SEED_DEVICES // INJECTING ${seedRowCount} COMPLIANCE HARDWARE ASSETS...`,
+      `SEED_DEVICES // ${seedRowCount} COMPLIANCE HARDWARE ASSETS PLOTTED TO BLUEPRINT COORDINATES`,
+      `SEED_DEFICIENCIES // INJECTED ${Math.max(2, Math.round(seedRowCount * 0.1))} ACTIVE DEFICIENCIES [SD-M-10 (CRITICAL FAILURE), SUPV-D-01 (WARNING)]`,
+      `SEED_REPORTS // INJECTED ${Math.max(1, Math.round(seedRowCount * 0.03))} COMPLIANCE REGISTRY RECORDS`,
       "SEED_QUOTES // INJECTED ACTIVE DEFICIENCY REPAIR QUOTES",
       "SEED_COMPLETE // RELATIONAL INTEGRITY VERIFIED (100% FOREIGN KEYS MATCHED)",
-      "SEED_COMPLETE // DATABASE SEEDING COMPLETED SUCCESSFULLY [TOTAL RECORDS: 124]"
+      `SEED_COMPLETE // DATABASE SEEDING COMPLETED SUCCESSFULLY [TOTAL ROWS SEEDED: ${1 + 3 + Math.max(2, Math.round(seedRowCount * 0.05)) * 2 + Math.max(2, Math.round(seedRowCount * 0.05)) + Math.max(4, Math.round(seedRowCount * 0.12)) + seedRowCount + Math.max(2, Math.round(seedRowCount * 0.1)) + Math.max(1, Math.round(seedRowCount * 0.03))}]`
     ];
 
     let currentLogIndex = 0;
@@ -499,7 +500,7 @@ export default function SystemArchitectureView() {
         clearInterval(interval);
         setIsSeeding(false);
       }
-    }, 150);
+    }, 120);
   };
 
   const getSeedCSVData = (tableName: string) => {
@@ -519,20 +520,20 @@ export default function SystemArchitectureView() {
       
       if (defLower.includes("pk")) {
         if (tableName === "companies") return "ee9c3d2d-27f5-4672-9114-1e293b2dc02d";
-        if (tableName === "users") return rowIndex === 0 ? "u1b2c3d4-4672-9114-1e29-3b2dc02dc02d" : "u5f6g7h8-4672-9114-1e29-3b2dc02dc02d";
-        if (tableName === "customers") return rowIndex === 0 ? "cust_hva_uuid" : "cust_pmg_uuid";
-        if (tableName === "buildings") return rowIndex === 0 ? "bld_hva_uuid" : "bld_pmg_uuid";
-        if (tableName === "devices") return rowIndex === 0 ? "dev_sd_10_uuid" : "dev_supv_01_uuid";
-        if (tableName === "deficiencies") return rowIndex === 0 ? "def_sd_10_uuid" : "def_supv_01_uuid";
+        if (tableName === "users") return rowIndex === 0 ? "u1b2c3d4-4672-9114-1e29-3b2dc02dc02d" : `u-user-uuid-${rowIndex}`;
+        if (tableName === "customers") return rowIndex === 0 ? "cust_hva_uuid" : `cust-client-uuid-${rowIndex}`;
+        if (tableName === "buildings") return rowIndex === 0 ? "bld_hva_uuid" : `bld-apt-uuid-${rowIndex}`;
+        if (tableName === "devices") return rowIndex === 0 ? "dev_sd_10_uuid" : `dev-pin-uuid-${rowIndex}`;
+        if (tableName === "deficiencies") return rowIndex === 0 ? "def_sd_10_uuid" : `def-log-uuid-${rowIndex}`;
         return `mock-uuid-${tableName}-${rowIndex}`;
       }
 
       if (defLower.includes("fk")) {
         if (colName.includes("company")) return "ee9c3d2d-27f5-4672-9114-1e293b2dc02d";
-        if (colName.includes("customer")) return rowIndex === 0 ? "cust_hva_uuid" : "cust_pmg_uuid";
-        if (colName.includes("building")) return rowIndex === 0 ? "bld_hva_uuid" : "bld_pmg_uuid";
-        if (colName.includes("floor")) return rowIndex === 0 ? "floor_main_uuid" : "floor_p1_uuid";
-        if (colName.includes("device")) return rowIndex === 0 ? "dev_sd_10_uuid" : "dev_supv_01_uuid";
+        if (colName.includes("customer")) return rowIndex === 0 ? "cust_hva_uuid" : `cust-client-uuid-${rowIndex}`;
+        if (colName.includes("building")) return rowIndex === 0 ? "bld_hva_uuid" : `bld-apt-uuid-${rowIndex}`;
+        if (colName.includes("floor")) return rowIndex === 0 ? "floor_main_uuid" : `floor-seq-uuid-${rowIndex}`;
+        if (colName.includes("device")) return rowIndex === 0 ? "dev_sd_10_uuid" : `dev-pin-uuid-${rowIndex}`;
         if (colName.includes("user") || colName.includes("by") || colName.includes("creator")) return "u1b2c3d4-4672-9114-1e29-3b2dc02dc02d";
         return "fk-reference-uuid";
       }
@@ -540,50 +541,50 @@ export default function SystemArchitectureView() {
       // Handle specific column names
       if (colName === "name") {
         if (tableName === "companies") return "Eagle Eye Fire & Life Safety";
-        if (tableName === "users") return rowIndex === 0 ? "R. Daniels" : "A. Singh";
-        if (tableName === "customers") return rowIndex === 0 ? "Harbour View Property Management" : "Pacific Medical Group";
-        if (tableName === "buildings") return rowIndex === 0 ? "Harbour View Apartments" : "Pacific Medical Center";
+        if (tableName === "users") return rowIndex === 0 ? "R. Daniels" : `Technician #${rowIndex + 1}`;
+        if (tableName === "customers") return rowIndex === 0 ? "Harbour View Property Management" : `Property Group #${rowIndex + 1}`;
+        if (tableName === "buildings") return rowIndex === 0 ? "Harbour View Apartments" : `SaaS Managed Building #${rowIndex + 1}`;
         return `Mock Name ${rowIndex + 1}`;
       }
 
       if (colName === "email") {
         if (tableName === "companies") return "operations@eagleeyefire.ca";
-        if (tableName === "users") return rowIndex === 0 ? "r.daniels@eagleeyefire.ca" : "a.singh@eagleeyefire.ca";
-        if (tableName === "customers") return rowIndex === 0 ? "reports@ewandf.ca" : "s.jenkins@pacmedical.ca";
+        if (tableName === "users") return `tech${rowIndex + 1}@eagleeyefire.ca`;
+        if (tableName === "customers") return `manager${rowIndex + 1}@propertygroup.ca`;
         return "info@example.com";
       }
 
       if (colName === "phone") {
         if (tableName === "companies") return "604-555-0199";
-        if (tableName === "users") return "604-555-0102";
-        if (tableName === "customers") return rowIndex === 0 ? "604-555-0144" : "604-555-0177";
+        if (tableName === "users") return `604-555-01${String(rowIndex).padStart(2, '0')}`;
+        if (tableName === "customers") return `604-555-02${String(rowIndex).padStart(2, '0')}`;
         return "604-555-0000";
       }
 
       if (colName === "address" || colName === "billing_address") {
         if (tableName === "companies") return '"Suite 400, 1055 W Georgia St, Vancouver, BC"';
-        if (tableName === "customers") return rowIndex === 0 ? '"1200 - 555 Hastings St, Vancouver, BC"' : '"450 - 1200 West Broadway, Vancouver, BC"';
-        if (tableName === "buildings") return rowIndex === 0 ? '"1640 Harbour View Dr, Vancouver, BC"' : '"1200 West Broadway, Vancouver, BC"';
+        if (tableName === "customers") return `"${100 + rowIndex * 10} Hastings St, Vancouver, BC"`;
+        if (tableName === "buildings") return `"${1200 + rowIndex * 20} Harbour View Dr, Vancouver, BC"`;
         return '"123 Main St, Vancouver, BC"';
       }
 
-      if (colName === "device_code") return rowIndex === 0 ? "SD-M-10" : "SUPV-D-01";
-      if (colName === "location") return rowIndex === 0 ? "Main Corridor East" : "Main Sprinkler Riser Room";
-      if (colName === "map_x") return rowIndex === 0 ? "45.20" : "18.40";
-      if (colName === "map_y") return rowIndex === 0 ? "38.60" : "76.10";
+      if (colName === "device_code") return rowIndex === 0 ? "SD-M-10" : `DEV-${rowIndex + 1}`;
+      if (colName === "location") return rowIndex === 0 ? "Main Corridor East" : `Floor Location Area #${rowIndex + 1}`;
+      if (colName === "map_x") return rowIndex === 0 ? "45.20" : String((15.0 + (rowIndex * 7.5) % 70).toFixed(2));
+      if (colName === "map_y") return rowIndex === 0 ? "38.60" : String((20.0 + (rowIndex * 9.3) % 65).toFixed(2));
       if (colName === "status" || colName === "portal_status") {
-        if (tableName === "devices") return rowIndex === 0 ? "failed" : "deficient";
+        if (tableName === "devices") return rowIndex === 0 ? "failed" : (rowIndex % 7 === 0 ? "deficient" : "passed");
         if (tableName === "deficiencies") return "open";
         return "active";
       }
-      if (colName === "priority") return rowIndex === 0 ? "critical" : "warning";
-      if (colName === "technical_description") return rowIndex === 0 ? "Smoke detector failed to activate control panel relays" : "Sprinkler supervisory pressure switch leaking";
-      if (colName === "customer_description") return rowIndex === 0 ? "Smoke detector in main corridor failed testing and needs replacement" : "Supervisory switch is leaking slowly and needs adjustment";
+      if (colName === "priority") return rowIndex === 0 ? "critical" : (rowIndex % 3 === 0 ? "critical" : "warning");
+      if (colName === "technical_description") return rowIndex === 0 ? "Smoke detector failed to activate control panel relays" : `Hardware unit fails basic diagnostics inspection sweep #${rowIndex + 1}`;
+      if (colName === "customer_description") return rowIndex === 0 ? "Smoke detector in main corridor failed testing and needs replacement" : `Safety hardware unit failed checklist protocols and requires service maintenance #${rowIndex + 1}`;
 
       // Type-based defaults
       if (defLower.includes("varchar")) return `Sample_Varchar_${rowIndex + 1}`;
       if (defLower.includes("text")) return `"Sample long-form description text for row ${rowIndex + 1}"`;
-      if (defLower.includes("int")) return String(rowIndex === 0 ? 4 : 6);
+      if (defLower.includes("int")) return String(rowIndex === 0 ? 4 : (3 + (rowIndex % 5)));
       if (defLower.includes("decimal") || defLower.includes("numeric")) return "125.00";
       if (defLower.includes("boolean")) return "true";
       if (defLower.includes("timestamp") || defLower.includes("date")) return "2026-06-05 09:00:00";
@@ -591,8 +592,15 @@ export default function SystemArchitectureView() {
       return `value_${rowIndex + 1}`;
     };
 
-    // Generate 2 mock rows for preview and CSV exports
-    const numRows = tableName === "companies" ? 1 : 2;
+    // Generate dynamic mock rows based on requested seedRowCount!
+    let numRows = 2;
+    if (tableName === "companies") numRows = 1;
+    else if (tableName === "users" || tableName === "customers" || tableName === "buildings") numRows = Math.max(2, Math.round(seedRowCount * 0.05));
+    else if (tableName === "devices") numRows = seedRowCount;
+    else if (tableName === "deficiencies") numRows = Math.max(2, Math.round(seedRowCount * 0.1));
+
+    // Limit to max 100 lines for live UI preview to keep layout snappy
+    const previewLimit = Math.min(numRows, 15);
     const rows = [];
     for (let i = 0; i < numRows; i++) {
       const rowValues = targetTable.fields.map(f => {
@@ -602,6 +610,11 @@ export default function SystemArchitectureView() {
       rows.push(rowValues.join(","));
     }
 
+    // Return full rows but sliced for preview text rendering
+    const previewText = rows.slice(0, previewLimit).join("\n");
+    if (numRows > previewLimit) {
+      return `${header}\n${previewText}\n... [Truncated ${numRows - previewLimit} rows from preview. Click Download for complete CSV]`;
+    }
     return `${header}\n${rows.join("\n")}`;
   };
 
@@ -1814,6 +1827,35 @@ generator client {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-4 space-y-3">
+                  {/* Seed Row Count Customizer Controls */}
+                  <div className="mb-4 bg-slate-900/40 border border-cyan-500/10 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="text-[10px] font-bold text-cyan-400 uppercase">Target Device Seed Count</div>
+                      <div className="text-[8px] text-slate-400">Specify the number of life-safety devices to generate (10 - 1000).</div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min="10"
+                        max="1000"
+                        step="10"
+                        value={seedRowCount}
+                        onChange={(e) => setSeedRowCount(Number(e.target.value))}
+                        disabled={isSeeding}
+                        className="w-[120px] sm:w-[150px] accent-cyan-500 h-1 cursor-pointer bg-slate-800 border-none rounded-lg"
+                      />
+                      <input
+                        type="number"
+                        min="10"
+                        max="1000"
+                        value={seedRowCount}
+                        onChange={(e) => setSeedRowCount(Math.max(10, Math.min(1000, Number(e.target.value))))}
+                        disabled={isSeeding}
+                        className="w-[60px] h-7 bg-slate-900 border border-cyan-500/30 text-cyan-400 text-[10px] font-bold font-mono text-center focus:border-cyan-400 outline-none rounded-none"
+                      />
+                    </div>
+                  </div>
+
                   {/* Console Terminal Screen */}
                   <div className="bg-black/90 border border-cyan-500/10 p-3 h-[180px] overflow-y-auto font-mono text-[8px] text-emerald-400 space-y-1.5 scrollbar-thin">
                     {seedingLogs.length === 0 ? (
