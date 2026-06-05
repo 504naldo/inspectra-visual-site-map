@@ -354,32 +354,102 @@ export default function SystemArchitectureView() {
   };
 
   const handleErdAutoLayout = () => {
-    // Implement a grid-based force-directed layout that spaces tables dynamically
+    // Force-Directed Layout physics simulation
     const canvasWidth = 800;
     const canvasHeight = 450;
+    const centerX = canvasWidth / 2;
+    const centerY = canvasHeight / 2;
     const tableWidth = 180;
     const tableHeight = 120;
-    
-    // We can lay them out in rows of 3 columns
-    const columns = 3;
-    const horizontalSpacing = 240;
-    const verticalSpacing = 180;
-    const startX = 40;
-    const startY = 40;
 
-    setErdTables(prev => prev.map((t, index) => {
-      const row = Math.floor(index / columns);
-      const col = index % columns;
-      
-      const newX = Math.min(canvasWidth - tableWidth, startX + col * horizontalSpacing);
-      const newY = Math.min(canvasHeight - tableHeight, startY + row * verticalSpacing);
-      
-      return {
+    // Parameters
+    const iterations = 100;
+    const gravity = 0.05; // pull to center
+    const kRepulsion = 150000; // push apart
+    const kSpring = 0.06; // pull connected tables together
+    const desiredDistance = 250; // ideal spring length
+
+    setErdTables(prev => {
+      // Create mutable copy of nodes with velocities
+      const nodes = prev.map(t => ({
         ...t,
-        x: newX,
-        y: newY
-      };
-    }));
+        vx: 0,
+        vy: 0,
+        x: t.x === 0 && t.y === 0 ? Math.random() * 200 + 300 : t.x,
+        y: t.y === 0 && t.y === 0 ? Math.random() * 150 + 150 : t.y
+      }));
+
+      // Run force simulation iterations
+      for (let iter = 0; iter < iterations; iter++) {
+        // 1. Repulsion forces (all nodes push each other apart)
+        for (let i = 0; i < nodes.length; i++) {
+          for (let j = 0; j < nodes.length; j++) {
+            if (i === j) continue;
+            const dx = nodes[i].x - nodes[j].x;
+            const dy = nodes[i].y - nodes[j].y;
+            const distSq = dx * dx + dy * dy + 0.01; // avoid div by zero
+            const dist = Math.sqrt(distSq);
+
+            if (dist < 350) { // only repulse if relatively close
+              const force = kRepulsion / distSq;
+              nodes[i].vx += (dx / dist) * force;
+              nodes[i].vy += (dy / dist) * force;
+            }
+          }
+        }
+
+        // 2. Attraction forces (connected nodes pull together)
+        erdRelations.forEach(rel => {
+          const idxFrom = nodes.findIndex(n => n.id === rel.from);
+          const idxTo = nodes.findIndex(n => n.id === rel.to);
+
+          if (idxFrom !== -1 && idxTo !== -1) {
+            const dx = nodes[idxTo].x - nodes[idxFrom].x;
+            const dy = nodes[idxTo].y - nodes[idxFrom].y;
+            const dist = Math.sqrt(dx * dx + dy * dy) + 0.01;
+
+            // Spring force
+            const force = kSpring * (dist - desiredDistance);
+            const fx = (dx / dist) * force;
+            const fy = (dy / dist) * force;
+
+            nodes[idxFrom].vx += fx;
+            nodes[idxFrom].vy += fy;
+            nodes[idxTo].vx -= fx;
+            nodes[idxTo].vy -= fy;
+          }
+        });
+
+        // 3. Gravity (pull toward center) and apply velocities
+        nodes.forEach(node => {
+          const dx = centerX - node.x;
+          const dy = centerY - node.y;
+          node.vx += dx * gravity;
+          node.vy += dy * gravity;
+
+          // Update position (damped velocity)
+          node.x += node.vx * 0.15;
+          node.y += node.vy * 0.15;
+
+          // Reset velocities for next iteration
+          node.vx *= 0.5;
+          node.vy *= 0.5;
+
+          // Keep inside boundary margins
+          node.x = Math.max(30, Math.min(canvasWidth - tableWidth - 30, node.x));
+          node.y = Math.max(30, Math.min(canvasHeight - tableHeight - 30, node.y));
+        });
+      }
+
+      // Format back to original state structure
+      return nodes.map(n => ({
+        id: n.id,
+        name: n.name,
+        fields: n.fields,
+        x: Math.round(n.x),
+        y: Math.round(n.y)
+      }));
+    });
   };
 
   // Seeding tool states
