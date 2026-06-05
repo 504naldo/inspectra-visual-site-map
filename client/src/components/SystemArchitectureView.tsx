@@ -353,6 +353,35 @@ export default function SystemArchitectureView() {
     URL.revokeObjectURL(url);
   };
 
+  const handleErdAutoLayout = () => {
+    // Implement a grid-based force-directed layout that spaces tables dynamically
+    const canvasWidth = 800;
+    const canvasHeight = 450;
+    const tableWidth = 180;
+    const tableHeight = 120;
+    
+    // We can lay them out in rows of 3 columns
+    const columns = 3;
+    const horizontalSpacing = 240;
+    const verticalSpacing = 180;
+    const startX = 40;
+    const startY = 40;
+
+    setErdTables(prev => prev.map((t, index) => {
+      const row = Math.floor(index / columns);
+      const col = index % columns;
+      
+      const newX = Math.min(canvasWidth - tableWidth, startX + col * horizontalSpacing);
+      const newY = Math.min(canvasHeight - tableHeight, startY + row * verticalSpacing);
+      
+      return {
+        ...t,
+        x: newX,
+        y: newY
+      };
+    }));
+  };
+
   // Seeding tool states
   const [seedingLogs, setSeedingLogs] = useState<string[]>([]);
   const [isSeeding, setIsSeeding] = useState(false);
@@ -1126,13 +1155,22 @@ CREATE TABLE quotes (
                         Drag tables around the canvas to design relational layouts. Select a table to add custom fields or create relationships.
                       </CardDescription>
                     </div>
-                    <Button
-                      onClick={handleExportErdLayout}
-                      className="h-7 px-3 bg-cyan-950 border border-cyan-500 text-cyan-400 rounded-none hover:bg-cyan-500/20 text-[9px] font-bold uppercase"
-                    >
-                      <Download className="w-3 h-3 mr-1.5" />
-                      EXPORT LAYOUT JSON
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={handleErdAutoLayout}
+                        className="h-7 px-3 bg-cyan-950 border border-cyan-500 text-cyan-400 rounded-none hover:bg-cyan-500/20 text-[9px] font-bold uppercase"
+                      >
+                        <Move className="w-3 h-3 mr-1.5" />
+                        AUTO-ALIGN CANVAS
+                      </Button>
+                      <Button
+                        onClick={handleExportErdLayout}
+                        className="h-7 px-3 bg-cyan-950 border border-cyan-500 text-cyan-400 rounded-none hover:bg-cyan-500/20 text-[9px] font-bold uppercase"
+                      >
+                        <Download className="w-3 h-3 mr-1.5" />
+                        EXPORT LAYOUT JSON
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="p-4">
