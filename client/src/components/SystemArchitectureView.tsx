@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { 
   Database, ShieldAlert, GitBranch, FileText, DollarSign, Users, 
   Eye, FolderGit, History, WifiOff, Map, Server, KeyRound, TableProperties,
-  ArrowRight, CheckCircle2, AlertTriangle, Shield, Check, Info, Lock
+  ArrowRight, CheckCircle2, AlertTriangle, Shield, Check, Info, Lock, Download, Code, FileCode
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -244,6 +244,559 @@ export default function SystemArchitectureView() {
       fields: ["id (UUID, PK)", "company_id (UUID, FK)", "customer_id (UUID, FK)", "building_id (UUID, FK)", "quote_number (VARCHAR)", "status (VARCHAR)", "subtotal (NUMERIC)", "tax (NUMERIC)", "total (NUMERIC)", "expiry_date (DATE)", "approved_at (TIMESTAMP)", "created_at (TIMESTAMP)"]
     }
   ];
+
+  const [exportFormat, setExportFormat] = useState<"prisma" | "knex" | "sql">("prisma");
+  const [copiedSchema, setCopiedSchema] = useState(false);
+
+  const generateSchemaText = (format: "prisma" | "knex" | "sql") => {
+    if (format === "prisma") {
+      return `datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Company {
+  id            String      @id @default(uuid()) @db.Uuid
+  name          String      @db.VarChar(255)
+  logoUrl       String?     @map("logo_url") @db.VarChar(255)
+  address       String?     @db.Text
+  phone         String?     @db.VarChar(50)
+  email         String?     @db.VarChar(255)
+  serviceAreas  Json?       @map("service_areas")
+  branding      Json?
+  quoteTerms    String?     @map("quote_terms") @db.Text
+  reportFooter  String?     @map("report_footer") @db.Text
+  createdAt     DateTime    @default(now()) @map("created_at")
+  users         User[]
+  customers     Customer[]
+  devices       Device[]
+  deficiencies  Deficiency[]
+  reports       Report[]
+  quotes        Quote[]
+
+  @@map("companies")
+}
+
+model User {
+  id             String       @id @default(uuid()) @db.Uuid
+  companyId      String       @map("company_id") @db.Uuid
+  name           String       @db.VarChar(255)
+  email          String       @unique @db.VarChar(255)
+  passwordHash   String       @map("password_hash") @db.VarChar(255)
+  roleId         String       @map("role_id") @db.Uuid
+  asttbcNumber   String?      @map("asttbc_number") @db.VarChar(50)
+  status         String       @default("active") @db.VarChar(50)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  company        Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role           Role         @relation(fields: [roleId], references: [id])
+  deficiencies   Deficiency[] @relation("DeficiencyCreator")
+  reports        Report[]     @relation("ReportCreator")
+  testedDevices  Device[]     @relation("DeviceTester")
+
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(100)
+  permissions String[]
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  users       User[]
+
+  @@map("roles")
+}
+
+model Customer {
+  id             String       @id @default(uuid()) @db.Uuid
+  companyId      String       @map("company_id") @db.Uuid
+  name           String       @db.VarChar(255)
+  billingAddress String?      @map("billing_address") @db.Text
+  primaryContact String?      @map("primary_contact") @db.VarChar(255)
+  email          String?      @db.VarChar(255)
+  phone          String?      @db.VarChar(50)
+  portalStatus   String       @default("inactive") @map("portal_status") @db.VarChar(50)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  company        Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  buildings      Building[]
+  devices        Device[]
+  reports        Report[]
+  quotes         Quote[]
+
+  @@map("customers")
+}
+
+model Building {
+  id                 String       @id @default(uuid()) @db.Uuid
+  customerId         String       @map("customer_id") @db.Uuid
+  name               String       @db.VarChar(255)
+  address            String       @db.Text
+  occupancyType      String?      @map("occupancy_type") @db.VarChar(100)
+  numFloors          Int          @map("num_floors")
+  complianceStatus   String       @default("compliant") @map("compliance_status") @db.VarChar(50)
+  lastInspectionAt   DateTime?    @map("last_inspection_at")
+  nextInspectionDue  DateTime?    @map("next_inspection_due")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  customer           Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  floors             Floor[]
+  devices            Device[]
+  deficiencies       Deficiency[]
+  reports            Report[]
+  quotes             Quote[]
+
+  @@map("buildings")
+}
+
+model Floor {
+  id           String   @id @default(uuid()) @db.Uuid
+  buildingId   String   @map("building_id") @db.Uuid
+  name         String   @db.VarChar(100)
+  sequence     Int
+  blueprintUrl String?  @map("blueprint_url") @db.VarChar(255)
+  createdAt    DateTime @default(now()) @map("created_at")
+  building     Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  devices      Device[]
+
+  @@map("floors")
+}
+
+model Device {
+  id             String       @id @default(uuid()) @db.Uuid
+  companyId      String       @map("company_id") @db.Uuid
+  customerId     String       @map("customer_id") @db.Uuid
+  buildingId     String       @map("building_id") @db.Uuid
+  floorId        String       @map("floor_id") @db.Uuid
+  deviceCode     String       @map("device_code") @db.VarChar(100)
+  location       String       @db.Text
+  mapX           Decimal      @map("map_x") @db.Decimal(5, 2)
+  mapY           Decimal      @map("map_y") @db.Decimal(5, 2)
+  status         String       @default("not_tested") @db.VarChar(50)
+  qrCode         String?      @map("qr_code") @db.VarChar(255)
+  nfcTag         String?      @map("nfc_tag") @db.VarChar(255)
+  lastTestedAt   DateTime?    @map("last_tested_at")
+  lastTestedBy   String?      @map("last_tested_by") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at")
+  company        Company      @relation(fields: [companyId], references: [id])
+  customer       Customer     @relation(fields: [customerId], references: [id])
+  building       Building     @relation(fields: [buildingId], references: [id])
+  floor          Floor        @relation(fields: [floorId], references: [id])
+  tester         User?        @relation("DeviceTester", fields: [lastTestedBy], references: [id])
+  deficiencies   Deficiency[]
+
+  @@map("devices")
+}
+
+model Deficiency {
+  id                  String    @id @default(uuid()) @db.Uuid
+  companyId           String    @map("company_id") @db.Uuid
+  buildingId          String    @map("building_id") @db.Uuid
+  deviceId            String    @map("device_id") @db.Uuid
+  priority            String    @db.VarChar(50)
+  technicalDesc       String    @map("technical_description") @db.Text
+  customerDesc        String    @map("customer_description") @db.Text
+  internalNote        String?   @map("internal_note") @db.Text
+  recommendedRepair   String?   @map("recommended_repair") @db.Text
+  status              String    @default("open") @db.VarChar(50)
+  addToReport         Boolean   @default(true) @map("add_to_report")
+  addToQuote          Boolean   @default(true) @map("add_to_quote")
+  shareWithGovernment Boolean   @default(false) @map("share_with_government")
+  createdBy           String    @map("created_by") @db.Uuid
+  createdAt           DateTime  @default(now()) @map("created_at")
+  closedAt            DateTime? @map("closed_at")
+  company             Company   @relation(fields: [companyId], references: [id])
+  building            Building  @relation(fields: [buildingId], references: [id])
+  device              Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  creator             User      @relation("DeficiencyCreator", fields: [createdBy], references: [id])
+
+  @@map("deficiencies")
+}
+
+model Report {
+  id           String    @id @default(uuid()) @db.Uuid
+  companyId    String    @map("company_id") @db.Uuid
+  customerId   String    @map("customer_id") @db.Uuid
+  buildingId   String    @map("building_id") @db.Uuid
+  reportNumber String    @map("report_number") @db.VarChar(100)
+  reportType   String    @map("report_type") @db.VarChar(100)
+  status       String    @default("draft") @db.VarChar(50)
+  pdfUrl       String?   @map("pdf_url") @db.VarChar(255)
+  sentAt       DateTime? @map("sent_at")
+  approvedAt   DateTime? @map("approved_at")
+  createdBy    String    @map("created_by") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at")
+  company      Company   @relation(fields: [companyId], references: [id])
+  customer     Customer  @relation(fields: [customerId], references: [id])
+  building     Building  @relation(fields: [buildingId], references: [id])
+  creator      User      @relation("ReportCreator", fields: [createdBy], references: [id])
+
+  @@map("reports")
+}
+
+model Quote {
+  id          String    @id @default(uuid()) @db.Uuid
+  companyId   String    @map("company_id") @db.Uuid
+  customerId  String    @map("customer_id") @db.Uuid
+  buildingId  String    @map("building_id") @db.Uuid
+  quoteNumber String    @map("quote_number") @db.VarChar(100)
+  status      String    @default("draft") @db.VarChar(50)
+  subtotal    Decimal   @db.Decimal(12, 2)
+  tax         Decimal   @db.Decimal(12, 2)
+  total       Decimal   @db.Decimal(12, 2)
+  expiryDate  DateTime? @map("expiry_date") @db.Date
+  approvedAt  DateTime? @map("approved_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  company     Company   @relation(fields: [companyId], references: [id])
+  customer    Customer  @relation(fields: [customerId], references: [id])
+  building    Building  @relation(fields: [buildingId], references: [id])
+
+  @@map("quotes")
+}`;
+    }
+
+    if (format === "knex") {
+      return `exports.up = function(knex) {
+  return knex.schema
+    // 1. Companies Table
+    .createTable('companies', table => {
+      table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+      table.string('name', 255).notNullable();
+      table.string('logo_url', 255);
+      table.text('address');
+      table.string('phone', 50);
+      table.string('email', 255);
+      table.jsonb('service_areas');
+      table.jsonb('branding');
+      table.text('quote_terms');
+      table.text('report_footer');
+      table.timestamp('created_at').defaultTo(knex.fn.now());
+    })
+    
+    // 2. Roles Table
+    .createTable('roles', table => {
+      table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+      table.string('name', 100).notNullable();
+      table.specificType('permissions', 'text[]');
+      table.text('description');
+      table.timestamp('created_at').defaultTo(knex.fn.now());
+    })
+
+    // 3. Users Table
+    .createTable('users', table => {
+      table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+      table.uuid('company_id').references('id').inTable('companies').onDelete('CASCADE');
+      table.string('name', 255).notNullable();
+      table.string('email', 255).notNullable().unique();
+      table.string('password_hash', 255).notNullable();
+      table.uuid('role_id').references('id').inTable('roles');
+      table.string('asttbc_number', 50);
+      table.string('status', 50).defaultTo('active');
+      table.timestamp('created_at').defaultTo(knex.fn.now());
+    })
+
+    // 4. Customers Table
+    .createTable('customers', table => {
+      table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+      table.uuid('company_id').references('id').inTable('companies').onDelete('CASCADE');
+      table.string('name', 255).notNullable();
+      table.text('billing_address');
+      table.string('primary_contact', 255);
+      table.string('email', 255);
+      table.string('phone', 50);
+      table.string('portal_status', 50).defaultTo('inactive');
+      table.timestamp('created_at').defaultTo(knex.fn.now());
+    })
+
+    // 5. Buildings Table
+    .createTable('buildings', table => {
+      table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+      table.uuid('customer_id').references('id').inTable('customers').onDelete('CASCADE');
+      table.string('name', 255).notNullable();
+      table.text('address').notNullable();
+      table.string('occupancy_type', 100);
+      table.integer('num_floors').notNullable();
+      table.string('compliance_status', 50).defaultTo('compliant');
+      table.timestamp('last_inspection_at');
+      table.timestamp('next_inspection_due');
+      table.timestamp('created_at').defaultTo(knex.fn.now());
+    })
+
+    // 6. Floors Table
+    .createTable('floors', table => {
+      table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+      table.uuid('building_id').references('id').inTable('buildings').onDelete('CASCADE');
+      table.string('name', 100).notNullable();
+      table.integer('sequence').notNullable();
+      table.string('blueprint_url', 255);
+      table.timestamp('created_at').defaultTo(knex.fn.now());
+    })
+
+    // 7. Devices Table
+    .createTable('devices', table => {
+      table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+      table.uuid('company_id').references('id').inTable('companies');
+      table.uuid('customer_id').references('id').inTable('customers');
+      table.uuid('building_id').references('id').inTable('buildings');
+      table.uuid('floor_id').references('id').inTable('floors');
+      table.string('device_code', 100).notNullable();
+      table.text('location').notNullable();
+      table.decimal('map_x', 5, 2).notNullable();
+      table.decimal('map_y', 5, 2).notNullable();
+      table.string('status', 50).defaultTo('not_tested');
+      table.string('qr_code', 255);
+      table.string('nfc_tag', 255);
+      table.timestamp('last_tested_at');
+      table.uuid('last_tested_by').references('id').inTable('users');
+      table.timestamp('created_at').defaultTo(knex.fn.now());
+    })
+
+    // 8. Deficiencies Table
+    .createTable('deficiencies', table => {
+      table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+      table.uuid('company_id').references('id').inTable('companies');
+      table.uuid('building_id').references('id').inTable('buildings');
+      table.uuid('device_id').references('id').inTable('devices').onDelete('CASCADE');
+      table.string('priority', 50).notNullable();
+      table.text('technical_description').notNullable();
+      table.text('customer_description').notNullable();
+      table.text('internal_note');
+      table.text('recommended_repair');
+      table.string('status', 50).defaultTo('open');
+      table.boolean('add_to_report').defaultTo(true);
+      table.boolean('add_to_quote').defaultTo(true);
+      table.boolean('share_with_government').defaultTo(false);
+      table.uuid('created_by').references('id').inTable('users');
+      table.timestamp('created_at').defaultTo(knex.fn.now());
+      table.timestamp('closed_at');
+    })
+
+    // 9. Reports Table
+    .createTable('reports', table => {
+      table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+      table.uuid('company_id').references('id').inTable('companies');
+      table.uuid('customer_id').references('id').inTable('customers');
+      table.uuid('building_id').references('id').inTable('buildings');
+      table.string('report_number', 100).notNullable();
+      table.string('report_type', 100).notNullable();
+      table.string('status', 50).defaultTo('draft');
+      table.string('pdf_url', 255);
+      table.timestamp('sent_at');
+      table.timestamp('approved_at');
+      table.uuid('created_by').references('id').inTable('users');
+      table.timestamp('created_at').defaultTo(knex.fn.now());
+    })
+
+    // 10. Quotes Table
+    .createTable('quotes', table => {
+      table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+      table.uuid('company_id').references('id').inTable('companies');
+      table.uuid('customer_id').references('id').inTable('customers');
+      table.uuid('building_id').references('id').inTable('buildings');
+      table.string('quote_number', 100).notNullable();
+      table.string('status', 50).defaultTo('draft');
+      table.decimal('subtotal', 12, 2).notNullable();
+      table.decimal('tax', 12, 2).notNullable();
+      table.decimal('total', 12, 2).notNullable();
+      table.date('expiry_date');
+      table.timestamp('approved_at');
+      table.timestamp('created_at').defaultTo(knex.fn.now());
+    });
+};
+
+exports.down = function(knex) {
+  return knex.schema
+    .dropTableIfExists('quotes')
+    .dropTableIfExists('reports')
+    .dropTableIfExists('deficiencies')
+    .dropTableIfExists('devices')
+    .dropTableIfExists('floors')
+    .dropTableIfExists('buildings')
+    .dropTableIfExists('customers')
+    .dropTableIfExists('users')
+    .dropTableIfExists('roles')
+    .dropTableIfExists('companies');
+};`;
+    }
+
+    // Default to PostgreSQL DDL SQL script
+    return `-- 1. Enable UUID Extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- 2. Companies Table
+CREATE TABLE companies (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOTNullable,
+    logo_url VARCHAR(255),
+    address TEXT,
+    phone VARCHAR(50),
+    email VARCHAR(255),
+    service_areas JSONB,
+    branding JSONB,
+    quote_terms TEXT,
+    report_footer TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 3. Roles Table
+CREATE TABLE roles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL,
+    permissions TEXT[],
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 4. Users Table
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role_id UUID REFERENCES roles(id),
+    asttbc_number VARCHAR(50),
+    status VARCHAR(50) DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 5. Customers Table
+CREATE TABLE customers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    billing_address TEXT,
+    primary_contact VARCHAR(255),
+    email VARCHAR(255),
+    phone VARCHAR(50),
+    portal_status VARCHAR(50) DEFAULT 'inactive',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 6. Buildings Table
+CREATE TABLE buildings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id UUID REFERENCES customers(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    address TEXT NOT NULL,
+    occupancy_type VARCHAR(100),
+    num_floors INT NOT NULL,
+    compliance_status VARCHAR(50) DEFAULT 'compliant',
+    last_inspection_at TIMESTAMP,
+    next_inspection_due TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 7. Floors Table
+CREATE TABLE floors (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    building_id UUID REFERENCES buildings(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    sequence INT NOT NULL,
+    blueprint_url VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 8. Devices Table
+CREATE TABLE devices (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID REFERENCES companies(id),
+    customer_id UUID REFERENCES customers(id),
+    building_id UUID REFERENCES buildings(id),
+    floor_id UUID REFERENCES floors(id),
+    device_code VARCHAR(100) NOT NULL,
+    location TEXT NOT NULL,
+    map_x DECIMAL(5, 2) NOT NULL,
+    map_y DECIMAL(5, 2) NOT NULL,
+    status VARCHAR(50) DEFAULT 'not_tested',
+    qr_code VARCHAR(255),
+    nfc_tag VARCHAR(255),
+    last_tested_at TIMESTAMP,
+    last_tested_by UUID REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 9. Deficiencies Table
+CREATE TABLE deficiencies (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID REFERENCES companies(id),
+    building_id UUID REFERENCES buildings(id),
+    device_id UUID REFERENCES devices(id) ON DELETE CASCADE,
+    priority VARCHAR(50) NOT NULL,
+    technical_description TEXT NOT NULL,
+    customer_description TEXT NOT NULL,
+    internal_note TEXT,
+    recommended_repair TEXT,
+    status VARCHAR(50) DEFAULT 'open',
+    add_to_report BOOLEAN DEFAULT TRUE,
+    add_to_quote BOOLEAN DEFAULT TRUE,
+    share_with_government BOOLEAN DEFAULT FALSE,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    closed_at TIMESTAMP
+);
+
+-- 10. Reports Table
+CREATE TABLE reports (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID REFERENCES companies(id),
+    customer_id UUID REFERENCES customers(id),
+    building_id UUID REFERENCES buildings(id),
+    report_number VARCHAR(100) NOT NULL,
+    report_type VARCHAR(100) NOT NULL,
+    status VARCHAR(50) DEFAULT 'draft',
+    pdf_url VARCHAR(255),
+    sent_at TIMESTAMP,
+    approved_at TIMESTAMP,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 11. Quotes Table
+CREATE TABLE quotes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID REFERENCES companies(id),
+    customer_id UUID REFERENCES customers(id),
+    building_id UUID REFERENCES buildings(id),
+    quote_number VARCHAR(100) NOT NULL,
+    status VARCHAR(50) DEFAULT 'draft',
+    subtotal DECIMAL(12, 2) NOT NULL,
+    tax DECIMAL(12, 2) NOT NULL,
+    total DECIMAL(12, 2) NOT NULL,
+    expiry_date DATE,
+    approved_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);`;
+  };
+
+  const handleCopySchema = () => {
+    const text = generateSchemaText(exportFormat);
+    navigator.clipboard.writeText(text);
+    setCopiedSchema(true);
+    setTimeout(() => setCopiedSchema(false), 2000);
+  };
+
+  const handleDownloadSchema = () => {
+    const text = generateSchemaText(exportFormat);
+    const extensions = { prisma: "prisma", knex: "js", sql: "sql" };
+    const filenames = {
+      prisma: "schema.prisma",
+      knex: "20260614_init_schema.js",
+      sql: "schema.sql"
+    };
+    
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filenames[exportFormat];
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6">
@@ -1036,37 +1589,116 @@ export default function SystemArchitectureView() {
 
         {/* 10. DB MOCKUP */}
         <TabsContent value="database" className="space-y-4 outline-none">
-          <Card className="rounded-none bg-slate-950 border-cyan-500/20 font-mono">
-            <CardHeader className="border-b border-cyan-500/10 bg-slate-900/20 py-4">
-              <CardTitle className="text-sm font-bold text-cyan-400 uppercase flex items-center gap-2">
-                <TableProperties className="w-4 h-4 text-cyan-400" />
-                Relational Database Table Mockups
-              </CardTitle>
-              <CardDescription className="text-[10px] text-slate-400 mt-1">
-                Visualizing sample tables, primary keys (PK), foreign keys (FK), and data types in the Postgres database schema.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[500px] overflow-y-auto pr-2">
-                {dbTables.map((t) => (
-                  <div key={t.name} className="p-3 bg-slate-900/40 border border-cyan-500/10 space-y-2">
-                    <div className="flex items-center gap-1.5 border-b border-cyan-500/10 pb-1.5">
-                      <Database className="w-3.5 h-3.5 text-cyan-400" />
-                      <span className="font-bold text-cyan-400 text-[10px] uppercase">{t.name}</span>
-                    </div>
-                    <div className="space-y-1 font-mono text-[8px] text-slate-400">
-                      {t.fields.map((f) => (
-                        <div key={f} className="flex items-center justify-between p-1 bg-slate-950/40">
-                          <span>{f.split(" ")[0]}</span>
-                          <span className="text-slate-500 text-[7px] uppercase">{f.substring(f.indexOf(" ") + 1)}</span>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* Table Mockups List */}
+            <div className="lg:col-span-2 space-y-4">
+              <Card className="rounded-none bg-slate-950 border-cyan-500/20 font-mono">
+                <CardHeader className="border-b border-cyan-500/10 bg-slate-900/20 py-4">
+                  <CardTitle className="text-sm font-bold text-cyan-400 uppercase flex items-center gap-2">
+                    <TableProperties className="w-4 h-4 text-cyan-400" />
+                    Relational Database Table Mockups
+                  </CardTitle>
+                  <CardDescription className="text-[10px] text-slate-400 mt-1">
+                    Visualizing sample tables, primary keys (PK), foreign keys (FK), and data types in the Postgres database schema.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[450px] overflow-y-auto pr-2">
+                    {dbTables.map((t) => (
+                      <div key={t.name} className="p-3 bg-slate-900/40 border border-cyan-500/10 space-y-2">
+                        <div className="flex items-center gap-1.5 border-b border-cyan-500/10 pb-1.5">
+                          <Database className="w-3.5 h-3.5 text-cyan-400" />
+                          <span className="font-bold text-cyan-400 text-[10px] uppercase">{t.name}</span>
                         </div>
-                      ))}
+                        <div className="space-y-1 font-mono text-[8px] text-slate-400">
+                          {t.fields.map((f) => (
+                            <div key={f} className="flex items-center justify-between p-1 bg-slate-950/40">
+                              <span>{f.split(" ")[0]}</span>
+                              <span className="text-slate-500 text-[7px] uppercase">{f.substring(f.indexOf(" ") + 1)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Interactive Schema Exporter Tool */}
+            <div className="lg:col-span-1">
+              <Card className="rounded-none bg-slate-950 border-cyan-500/20 font-mono h-full flex flex-col">
+                <CardHeader className="border-b border-cyan-500/10 bg-slate-900/20 py-4">
+                  <CardTitle className="text-sm font-bold text-cyan-400 uppercase flex items-center gap-2">
+                    <Code className="w-4 h-4 text-cyan-400" />
+                    Schema Exporter Tool
+                  </CardTitle>
+                  <CardDescription className="text-[10px] text-slate-400 mt-1">
+                    Generate and download production-ready database schema scripts based on our architecture.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 flex-1 flex flex-col gap-4 min-h-0">
+                  
+                  {/* Format Selector */}
+                  <div className="grid grid-cols-3 gap-1 bg-slate-900/80 p-1 border border-cyan-500/10">
+                    {[
+                      { id: "prisma", label: "Prisma" },
+                      { id: "knex", label: "Knex.js" },
+                      { id: "sql", label: "Postgres SQL" }
+                    ].map((fmt) => (
+                      <button
+                        key={fmt.id}
+                        onClick={() => setExportFormat(fmt.id as any)}
+                        className={`py-1.5 text-[9px] font-bold uppercase border ${
+                          exportFormat === fmt.id
+                            ? "bg-cyan-950 border-cyan-500 text-cyan-400"
+                            : "bg-transparent border-transparent text-slate-500 hover:text-slate-300"
+                        }`}
+                      >
+                        {fmt.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Live Code Preview */}
+                  <div className="flex-1 bg-slate-900/60 border border-cyan-500/10 p-3 overflow-auto max-h-[300px] min-h-[150px] relative font-mono text-[7px] text-slate-300 whitespace-pre scrollbar-thin">
+                    <div className="absolute right-2 top-2 flex items-center gap-1.5 z-10">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleCopySchema}
+                        className="h-6 rounded-none bg-slate-950/80 border border-cyan-500/20 text-[8px] text-cyan-400 hover:bg-cyan-500/10"
+                      >
+                        {copiedSchema ? "COPIED" : "COPY"}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleDownloadSchema}
+                        className="h-6 rounded-none bg-slate-950/80 border border-cyan-500/20 text-[8px] text-cyan-400 hover:bg-cyan-500/10 flex items-center gap-1"
+                      >
+                        <Download className="w-2.5 h-2.5" />
+                        <span>DOWNLOAD</span>
+                      </Button>
+                    </div>
+                    {generateSchemaText(exportFormat)}
+                  </div>
+
+                  {/* Schema Integration Info */}
+                  <div className="p-3 bg-cyan-950/10 border border-cyan-500/10 flex gap-2 text-[9px] text-cyan-500/90 leading-relaxed uppercase">
+                    <Info className="w-4 h-4 shrink-0 text-cyan-400" />
+                    <div>
+                      <span className="font-bold text-cyan-400 block mb-0.5">Integration Note:</span>
+                      This schema defines all relational bounds, indexes, and primary/foreign keys to guarantee high-performance queries on production Postgres databases.
                     </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+
+                </CardContent>
+              </Card>
+            </div>
+
+          </div>
         </TabsContent>
 
       </Tabs>
