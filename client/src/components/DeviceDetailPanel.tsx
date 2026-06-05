@@ -1,231 +1,253 @@
-import React, { useState, useEffect } from "react";
-import { Device, DeviceStatus } from "@/lib/mock-data";
+import React from "react";
+import { Device, DeviceStatus, DeviceType } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { 
-  X, CheckCircle, AlertTriangle, EyeOff, 
-  RotateCcw, AlertCircle, MapPin, Calendar, Tag, Crosshair
+  Flame, Shield, Radio, Droplets, Waves, ShieldAlert, Compass, 
+  ArrowRight, Key, HelpCircle, Check, X, Eye, EyeOff, Camera, Clock, QrCode
 } from "lucide-react";
-import { getDeviceIcon, getStatusColors } from "./MapCanvas";
 
 interface DeviceDetailPanelProps {
   device: Device | null;
   onClose: () => void;
-  onUpdateStatus: (id: string, status: DeviceStatus, note?: string) => void;
+  onUpdateStatus: (deviceId: string, status: DeviceStatus) => void;
+  onTriggerDeficiencyModal: (isFailure: boolean) => void;
+  activeRole: string; // "fire_company" | "property_manager" | "government"
 }
 
-export default function DeviceDetailPanel({ device, onClose, onUpdateStatus }: DeviceDetailPanelProps) {
-  const [deficiencyNote, setDeficiencyNote] = useState("");
-  const [showDeficiencyInput, setShowDeficiencyInput] = useState(false);
-  const [isFailing, setIsFailing] = useState(false);
-
-  // Sync state when device changes
-  useEffect(() => {
-    if (device) {
-      setDeficiencyNote(device.deficiencyNote || "");
-      setShowDeficiencyInput(device.status === "deficiency" || device.status === "failed");
-      setIsFailing(device.status === "failed");
-    }
-  }, [device]);
-
+export default function DeviceDetailPanel({
+  device,
+  onClose,
+  onUpdateStatus,
+  onTriggerDeficiencyModal,
+  activeRole
+}: DeviceDetailPanelProps) {
   if (!device) return null;
 
-  const colors = getStatusColors(device.status);
-
-  const handleMarkPass = () => {
-    onUpdateStatus(device.id, "passed");
-    setShowDeficiencyInput(false);
-    setIsFailing(false);
+  // Local helper for icon rendering
+  const renderDeviceIcon = (type: DeviceType, className = "w-5 h-5") => {
+    switch (type) {
+      case "Fire Alarm Panel":
+        return <Shield className={className} />;
+      case "Annunciator":
+        return <Radio className={className} />;
+      case "Smoke Detector":
+        return <Flame className={className} />;
+      case "Heat Detector":
+        return <Flame className={className} />;
+      case "Pull Station":
+        return <Radio className={className} />;
+      case "Horn/Strobe":
+        return <Radio className={className} />;
+      case "Speaker/Strobe":
+        return <Radio className={className} />;
+      case "Sprinkler Riser":
+        return <Droplets className={className} />;
+      case "FDC":
+        return <Waves className={className} />;
+      case "Standpipe":
+        return <Waves className={className} />;
+      case "Fire Extinguisher":
+        return <ShieldAlert className={className} />;
+      case "Emergency Light":
+        return <Compass className={className} />;
+      case "Exit Sign":
+        return <ArrowRight className={className} />;
+      case "Lockbox":
+        return <Key className={className} />;
+      default:
+        return <HelpCircle className={className} />;
+    }
   };
 
-  const handleMarkFail = () => {
-    setIsFailing(true);
-    setShowDeficiencyInput(true);
-  };
-
-  const handleSaveFailOrDeficiency = () => {
-    const status: DeviceStatus = isFailing ? "failed" : "deficiency";
-    onUpdateStatus(device.id, status, deficiencyNote);
-  };
-
-  const handleNoAccess = () => {
-    onUpdateStatus(device.id, "no_access");
-    setShowDeficiencyInput(false);
-    setIsFailing(false);
-  };
-
-  const handleReset = () => {
-    onUpdateStatus(device.id, "not_tested");
-    setDeficiencyNote("");
-    setShowDeficiencyInput(false);
-    setIsFailing(false);
-  };
-
-  const handleAddDeficiency = () => {
-    setIsFailing(false);
-    setShowDeficiencyInput(true);
+  // Local helper for status badges
+  const getStatusBadge = (status: DeviceStatus) => {
+    switch (status) {
+      case "passed":
+        return <Badge className="bg-emerald-950/50 text-emerald-400 border-emerald-500/30 rounded-none text-[9px] font-bold">PASSED</Badge>;
+      case "failed":
+        return <Badge className="bg-rose-950/50 text-rose-400 border-rose-500/30 rounded-none text-[9px] font-bold animate-pulse">FAILED</Badge>;
+      case "deficiency":
+        return <Badge className="bg-amber-950/50 text-amber-400 border-amber-500/30 rounded-none text-[9px] font-bold">DEFICIENCY</Badge>;
+      case "testing":
+        return <Badge className="bg-cyan-950/50 text-cyan-400 border-cyan-500/30 rounded-none text-[9px] font-bold">TESTING</Badge>;
+      case "no_access":
+        return <Badge className="bg-slate-900 text-slate-400 border-slate-700 rounded-none text-[9px] font-bold">NO_ACCESS</Badge>;
+      default:
+        return <Badge className="bg-slate-950 text-slate-500 border-slate-800 rounded-none text-[9px] font-bold">NOT_TESTED</Badge>;
+    }
   };
 
   return (
-    <div className="w-80 flex-none border-l border-cyan-500/20 bg-slate-950/90 backdrop-blur-xl flex flex-col z-10 shadow-[-10px_0_30px_rgba(0,0,0,0.5)] animate-in slide-in-from-right duration-300 font-mono hud-corners">
+    <div className="w-80 border-l border-cyan-500/20 bg-slate-950/95 p-4 flex flex-col h-full overflow-y-auto font-mono text-xs text-cyan-400 gap-4">
       {/* Panel Header */}
-      <div className="p-4 flex items-center justify-between border-b border-cyan-500/10 bg-slate-900/40">
-        <div className="flex items-center gap-2.5">
-          <div className={`w-8 h-8 rounded border flex items-center justify-center ${colors.bg}`}>
-            {getDeviceIcon(device.type, "w-4 h-4")}
+      <div className="flex items-center justify-between border-b border-cyan-500/10 pb-3">
+        <span className="font-bold text-slate-500 text-[10px] tracking-widest uppercase">DEVICE_DETAILS // {device.id}</span>
+        <button onClick={onClose} className="text-slate-500 hover:text-cyan-400 text-sm font-bold">[X]</button>
+      </div>
+
+      {/* Main Metadata */}
+      <div className="flex items-start gap-3">
+        <div className="p-2.5 bg-cyan-950/40 border border-cyan-500/20 text-cyan-400">
+          {renderDeviceIcon(device.type, "w-6 h-6")}
+        </div>
+        <div className="space-y-1">
+          <h3 className="font-bold text-cyan-300 text-sm uppercase leading-tight">{device.label}</h3>
+          <p className="text-[10px] text-slate-500 uppercase">{device.type}</p>
+          <div className="pt-1">{getStatusBadge(device.status)}</div>
+        </div>
+      </div>
+
+      <Separator className="bg-cyan-500/10" />
+
+      {/* Location Details */}
+      <div className="space-y-2.5">
+        <div>
+          <span className="text-[9px] text-slate-500 uppercase font-bold">FLOOR_ZONE:</span>
+          <p className="text-cyan-300 font-bold mt-0.5">{device.floor.toUpperCase()} // {device.area.toUpperCase()}</p>
+        </div>
+        <div>
+          <span className="text-[9px] text-slate-500 uppercase font-bold">SPECIFIC_LOCATION:</span>
+          <p className="text-cyan-300 mt-0.5">{device.location.toUpperCase()}</p>
+        </div>
+        <div className="flex items-center gap-4 text-[10px]">
+          <div>
+            <span className="text-[9px] text-slate-500 uppercase font-bold">X_COORD:</span>
+            <span className="text-cyan-300 font-bold ml-1">{device.x}%</span>
           </div>
           <div>
-            <h3 className="font-bold text-xs tracking-wider text-cyan-400">{device.label}</h3>
-            <p className="text-[9px] text-slate-400 uppercase tracking-widest mt-0.5">{device.type}</p>
+            <span className="text-[9px] text-slate-500 uppercase font-bold">Y_COORD:</span>
+            <span className="text-cyan-300 font-bold ml-1">{device.y}%</span>
           </div>
         </div>
-        <Button variant="ghost" size="icon" className="h-7 w-7 rounded hover:bg-cyan-500/10 text-slate-400 hover:text-cyan-400" onClick={onClose}>
-          <X className="w-4 h-4" />
-        </Button>
       </div>
 
-      {/* Panel Body */}
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-5">
-        {/* Status Badge */}
-        <div className="flex flex-col gap-1.5">
-          <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
-            <Crosshair className="w-3 h-3 text-cyan-500/60" /> STATUS_TELEMETRY
+      <Separator className="bg-cyan-500/10" />
+
+      {/* Technician vs Customer Notes (SaaS Role Privacy Demonstration) */}
+      <div className="space-y-3">
+        {/* Customer / Shared Notes */}
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-[9px] text-slate-500 font-bold">
+            <Eye className="w-3.5 h-3.5 text-cyan-500" />
+            <span>CUSTOMER_SHARED_NOTES</span>
+            <Badge className="bg-cyan-950/20 text-cyan-400 border-cyan-500/10 text-[8px] scale-90 py-0 px-1 rounded-none">PUBLIC</Badge>
+          </div>
+          <p className="text-slate-300 text-[10px] bg-slate-900/30 p-2 border border-cyan-500/5 leading-relaxed">
+            {device.customerNotes || "NO SHARED NOTES LOGGED FOR THIS NODE."}
+          </p>
+        </div>
+
+        {/* Technician-Only Notes (Hidden in Gov Mode or Client Mode if configured) */}
+        {activeRole === "fire_company" && (
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-[9px] text-rose-400/80 font-bold">
+              <EyeOff className="w-3.5 h-3.5 text-rose-500" />
+              <span>TECHNICIAN_INTERNAL_NOTES</span>
+              <Badge className="bg-rose-950/20 text-rose-400 border-rose-500/10 text-[8px] scale-90 py-0 px-1 rounded-none">INTERNAL_ONLY</Badge>
+            </div>
+            <p className="text-rose-300/90 text-[10px] bg-rose-950/10 p-2 border border-rose-500/10 leading-relaxed">
+              {device.technicianNotes || "NO INTERNAL TECHNICIAN TELEMETRY LOGGED."}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Photo attachment placeholder */}
+      {device.photoUrl && (
+        <div className="space-y-1.5">
+          <span className="text-[9px] text-slate-500 uppercase font-bold flex items-center gap-1">
+            <Camera className="w-3.5 h-3.5" /> FIELD_PHOTO_ATTACHMENT
           </span>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className={`capitalize px-2.5 py-0.5 text-[10px] font-bold rounded-none ${colors.bg} ${colors.text} border-current shadow-sm`}>
-              {device.status.replace("_", " ")}
-            </Badge>
-            {device.deficiencyNote && (
-              <Badge variant="outline" className="bg-rose-950/40 text-rose-400 border-rose-500/30 text-[9px] rounded-none">
-                DEFECT_LOGGED
-              </Badge>
-            )}
-          </div>
-        </div>
-
-        {/* Location Info */}
-        <div className="flex flex-col gap-3 bg-slate-900/60 p-3 rounded-none border border-cyan-500/10">
-          <div className="flex items-start gap-2.5 text-[10px]">
-            <MapPin className="w-3.5 h-3.5 text-cyan-500/60 mt-0.5 flex-none" />
-            <div>
-              <span className="font-bold text-cyan-400 uppercase tracking-wider">{device.floor}</span>
-              <p className="text-slate-400 mt-1 leading-normal uppercase">{device.area} // {device.location}</p>
+          <div className="border border-cyan-500/20 bg-slate-900 overflow-hidden h-28 relative">
+            <img src={device.photoUrl} alt="field attachment" className="w-full h-full object-cover" />
+            <div className="absolute bottom-1.5 right-1.5 bg-slate-950/80 px-1.5 py-0.5 text-[8px] text-cyan-400 border border-cyan-500/20">
+              ATTACHED_JPG
             </div>
           </div>
+        </div>
+      )}
 
-          <Separator className="bg-cyan-500/10" />
-
-          <div className="flex items-center gap-2.5 text-[10px] text-slate-400">
-            <Tag className="w-3.5 h-3.5 text-cyan-500/60 flex-none" />
-            <span>CLASS: <strong className="text-cyan-400 font-bold uppercase">{device.category}</strong></span>
-          </div>
-
-          {device.lastTestedAt && (
-            <>
-              <Separator className="bg-cyan-500/10" />
-              <div className="flex items-center gap-2.5 text-[10px] text-slate-400">
-                <Calendar className="w-3.5 h-3.5 text-cyan-500/60 flex-none" />
-                <span>TIMESTAMP: <strong className="text-cyan-400 font-bold">{new Date(device.lastTestedAt).toLocaleTimeString()}</strong></span>
+      {/* Service History Logs */}
+      {device.serviceHistory && device.serviceHistory.length > 0 && (
+        <div className="space-y-1.5">
+          <span className="text-[9px] text-slate-500 uppercase font-bold flex items-center gap-1">
+            <Clock className="w-3.5 h-3.5" /> SERVICE_HISTORY
+          </span>
+          <div className="space-y-1.5 max-h-[100px] overflow-y-auto">
+            {device.serviceHistory.map((hist, i) => (
+              <div key={i} className="bg-slate-900/40 p-1.5 border border-cyan-500/5 text-[9px] leading-relaxed">
+                <div className="flex justify-between font-bold text-cyan-300">
+                  <span>{hist.date}</span>
+                  <span>{hist.technician}</span>
+                </div>
+                <p className="text-slate-400 mt-0.5 uppercase">{hist.action}</p>
               </div>
-            </>
-          )}
+            ))}
+          </div>
         </div>
+      )}
 
-        {/* Deficiency Note Display */}
-        {device.deficiencyNote && !showDeficiencyInput && (
-          <div className="p-3 bg-rose-950/20 rounded-none border border-rose-500/30 flex flex-col gap-1">
-            <span className="text-[9px] font-bold text-rose-400 uppercase tracking-widest flex items-center gap-1">
-              <AlertCircle className="w-3.5 h-3.5" /> DEFICIENCY_LOG
-            </span>
-            <p className="text-[10px] text-rose-300 leading-relaxed italic">"{device.deficiencyNote}"</p>
+      {/* QR telemetry placeholder */}
+      {device.qrCode && (
+        <div className="flex items-center gap-2 bg-slate-900/40 p-2 border border-cyan-500/5">
+          <QrCode className="w-6 h-6 text-cyan-500/60" />
+          <div>
+            <span className="text-[8px] text-slate-500 font-bold uppercase">DIGITAL_ID_TAG:</span>
+            <p className="text-[10px] text-cyan-300 font-bold">{device.qrCode}</p>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Action Form for Deficiency/Fail */}
-        {showDeficiencyInput && (
-          <div className="p-3 bg-slate-900/80 rounded-none border border-cyan-500/20 flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
-            <div className="flex items-center gap-1.5 text-[10px] font-bold text-cyan-400 uppercase">
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-              <span>{isFailing ? "LOG_TEST_FAILURE" : "LOG_DEFICIENCY"}</span>
-            </div>
-            
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="note" className="text-[9px] text-slate-400 uppercase tracking-wider">Deficiency Log Input</Label>
-              <Textarea 
-                id="note"
-                placeholder="INPUT REASON FOR TEST DEVIATION..."
-                className="text-[10px] bg-slate-950 border-cyan-500/20 text-cyan-400 placeholder:text-slate-600 rounded-none min-h-[60px] focus-visible:ring-cyan-500/50 uppercase"
-                value={deficiencyNote}
-                onChange={(e) => setDeficiencyNote(e.target.value)}
-              />
-            </div>
+      <Separator className="bg-cyan-500/10 mt-auto" />
 
-            <div className="flex gap-2 justify-end">
-              <Button size="sm" variant="ghost" className="text-[10px] h-7 rounded-none hover:bg-cyan-500/10 text-slate-400" onClick={() => setShowDeficiencyInput(false)}>
-                CANCEL
-              </Button>
-              <Button size="sm" className="text-[10px] h-7 rounded-none bg-cyan-500 text-slate-950 hover:bg-cyan-400 font-bold" onClick={handleSaveFailOrDeficiency} disabled={!deficiencyNote.trim()}>
-                COMMIT_{isFailing ? "FAIL" : "DEFICIENCY"}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        {!showDeficiencyInput && (
-          <div className="flex flex-col gap-2 mt-auto">
-            <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1 flex items-center gap-1">
-              <Crosshair className="w-3 h-3 text-cyan-500/60" /> OVERRIDE_CONTROLS
-            </span>
+      {/* Interactive Technician Action Workflows */}
+      {activeRole === "fire_company" && (
+        <div className="space-y-2 pt-2">
+          <span className="text-[9px] text-slate-500 uppercase font-bold">RECORD_INSPECTION_RESULT:</span>
+          
+          <div className="grid grid-cols-2 gap-2">
+            <Button 
+              onClick={() => onUpdateStatus(device.id, "passed")}
+              className="bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-500/40 text-emerald-400 rounded-none text-[10px] font-bold h-8 flex items-center gap-1"
+            >
+              <Check className="w-3.5 h-3.5" /> MARK_PASS
+            </Button>
             
             <Button 
-              className="w-full justify-start gap-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-none shadow-[0_0_10px_rgba(16,185,129,0.3)] hover:shadow-[0_0_15px_rgba(16,185,129,0.5)] transition-all"
-              onClick={handleMarkPass}
+              onClick={() => onTriggerDeficiencyModal(true)}
+              className="bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/40 text-rose-400 rounded-none text-[10px] font-bold h-8 flex items-center gap-1"
             >
-              <CheckCircle className="w-4 h-4" /> MARK PASS
+              <X className="w-3.5 h-3.5" /> MARK_FAIL
             </Button>
+          </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <Button 
-                variant="outline" 
-                className="justify-start gap-1.5 text-rose-400 border-rose-500/30 hover:bg-rose-950/30 hover:border-rose-500 font-bold rounded-none"
-                onClick={handleMarkFail}
-              >
-                <AlertCircle className="w-3.5 h-3.5" /> MARK FAIL
-              </Button>
-
-              <Button 
-                variant="outline" 
-                className="justify-start gap-1.5 text-amber-400 border-amber-500/30 hover:bg-amber-950/30 hover:border-amber-500 font-bold rounded-none"
-                onClick={handleAddDeficiency}
-              >
-                <AlertTriangle className="w-3.5 h-3.5" /> DEFICIENCY
-              </Button>
-            </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Button 
+              onClick={() => onTriggerDeficiencyModal(false)}
+              className="bg-amber-950/40 hover:bg-amber-900/60 border border-amber-500/40 text-amber-400 rounded-none text-[10px] font-bold h-8 flex items-center gap-1"
+            >
+              <X className="w-3.5 h-3.5" /> DEFICIENCY
+            </Button>
 
             <Button 
-              variant="outline" 
-              className="w-full justify-start gap-2 text-purple-400 border-purple-500/30 hover:bg-purple-950/30 hover:border-purple-500 font-bold rounded-none"
-              onClick={handleNoAccess}
+              onClick={() => onUpdateStatus(device.id, "no_access")}
+              className="bg-slate-900 hover:bg-slate-850 border border-slate-700 text-slate-400 rounded-none text-[10px] font-bold h-8 flex items-center gap-1"
             >
-              <EyeOff className="w-4 h-4" /> NO ACCESS
+              <EyeOff className="w-3.5 h-3.5" /> NO_ACCESS
             </Button>
-
-            {device.status !== "not_tested" && (
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start gap-2 text-slate-400 hover:bg-cyan-500/10 hover:text-cyan-400 rounded-none"
-                onClick={handleReset}
-              >
-                <RotateCcw className="w-4 h-4" /> RESET TO PENDING
-              </Button>
-            )}
           </div>
-        )}
-      </div>
+
+          <Button 
+            onClick={() => onUpdateStatus(device.id, "not_tested")}
+            variant="ghost"
+            className="w-full border border-cyan-500/10 text-slate-500 hover:text-cyan-400 hover:bg-cyan-500/5 rounded-none text-[10px] font-bold h-8"
+          >
+            RESET_TO_NOT_TESTED
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
