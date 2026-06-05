@@ -248,6 +248,104 @@ export default function SystemArchitectureView() {
   const [exportFormat, setExportFormat] = useState<"prisma" | "knex" | "sql">("prisma");
   const [copiedSchema, setCopiedSchema] = useState(false);
 
+  // Seeding tool states
+  const [seedingLogs, setSeedingLogs] = useState<string[]>([]);
+  const [isSeeding, setIsSeeding] = useState(false);
+  const [seedPreviewTable, setSeedPreviewTable] = useState<string>("companies");
+
+  const runSeedingSimulation = () => {
+    setIsSeeding(true);
+    setSeedingLogs([]);
+    
+    const logs = [
+      "SEEDING_INIT // CONNECTING TO TARGET DATABASE...",
+      "AUTH_OK // DATABASE CONNECTION ESTABLISHED [POSTGRESQL // PORT 5432]",
+      "MIGRATION_CHECK // SCHEMAS MATCH PRODUCTION VERSION v1.2.4",
+      "CLEANING_DB // TRUNCATING EXISTING RECORDS (CASCADE)...",
+      "CLEANING_DB // TABLE 'companies' TRUNCATED.",
+      "CLEANING_DB // TABLE 'roles' TRUNCATED.",
+      "CLEANING_DB // TABLE 'users' TRUNCATED.",
+      "CLEANING_DB // TABLE 'customers' TRUNCATED.",
+      "CLEANING_DB // TABLE 'buildings' TRUNCATED.",
+      "CLEANING_DB // TABLE 'floors' TRUNCATED.",
+      "CLEANING_DB // TABLE 'devices' TRUNCATED.",
+      "CLEANING_DB // TABLE 'deficiencies' TRUNCATED.",
+      "SEED_START // INJECTING SEED DATASETS...",
+      "SEED_COMPANIES // INJECTED 1 COMPANY RECORD [EAGLE EYE FIRE & LIFE SAFETY]",
+      "SEED_ROLES // INJECTED 3 ROLE DEFINITIONS [ADMIN, TECHNICIAN, CUSTOMER]",
+      "SEED_USERS // INJECTED 5 USER ACCOUNTS WITH SECURE PASSWORD HASHES",
+      "SEED_CUSTOMERS // INJECTED 4 REALISTIC PROPERTY MANAGEMENT CUSTOMERS",
+      "SEED_BUILDINGS // INJECTED 4 MULTI-STORY BUILDINGS [HARBOUR VIEW APTS, PACIFIC MEDICAL, ETC]",
+      "SEED_FLOORS // INJECTED 12 FLOOR Blueprints AND SEQUENCE INDICES",
+      "SEED_DEVICES // INJECTING 85 COMPLIANCE HARDWARE ASSETS...",
+      "SEED_DEVICES // 85 COMPLIANCE HARDWARE ASSETS PLOTTED TO BLUEPRINT COORDINATES",
+      "SEED_DEFICIENCIES // INJECTED ACTIVE DEFICIENCIES [SD-M-10 (CRITICAL FAILURE), SUPV-D-01 (WARNING)]",
+      "SEED_REPORTS // INJECTED 3 COMPLIANCE REGISTRY RECORDS",
+      "SEED_QUOTES // INJECTED ACTIVE DEFICIENCY REPAIR QUOTES",
+      "SEED_COMPLETE // RELATIONAL INTEGRITY VERIFIED (100% FOREIGN KEYS MATCHED)",
+      "SEED_COMPLETE // DATABASE SEEDING COMPLETED SUCCESSFULLY [TOTAL RECORDS: 124]"
+    ];
+
+    let currentLogIndex = 0;
+    const interval = setInterval(() => {
+      if (currentLogIndex < logs.length) {
+        setSeedingLogs(prev => [...prev, `[${new Date().toISOString().split('T')[1].slice(0, -1)}] ${logs[currentLogIndex]}`]);
+        currentLogIndex++;
+      } else {
+        clearInterval(interval);
+        setIsSeeding(false);
+      }
+    }, 150);
+  };
+
+  const getSeedCSVData = (tableName: string) => {
+    if (tableName === "companies") {
+      return `id,name,logo_url,address,phone,email,created_at
+ee9c3d2d-27f5-4672-9114-1e293b2dc02d,Eagle Eye Fire & Life Safety,/manus-storage/logo.png,"Suite 400, 1055 W Georgia St, Vancouver, BC",604-555-0199,operations@eagleeyefire.ca,2026-01-15 08:00:00`;
+    }
+    if (tableName === "users") {
+      return `id,company_id,name,email,password_hash,role_id,asttbc_number,status,created_at
+u1b2c3d4-4672-9114-1e29-3b2dc02dc02d,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,R. Daniels,r.daniels@eagleeyefire.ca,$2b$12$SecureHashDaniels...,role_tech_uuid,ASTTBC-2021-9981,active,2026-01-15 08:30:00
+u5f6g7h8-4672-9114-1e29-3b2dc02dc02d,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,A. Singh,a.singh@eagleeyefire.ca,$2b$12$SecureHashSingh...,role_tech_uuid,ASTTBC-2023-1102,active,2026-01-16 09:00:00
+u9i0j1k2-4672-9114-1e29-3b2dc02dc02d,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,M. Chen,m.chen@eagleeyefire.ca,$2b$12$SecureHashChen...,role_admin_uuid,ASTTBC-2018-4451,active,2026-01-15 08:15:00`;
+    }
+    if (tableName === "customers") {
+      return `id,company_id,name,billing_address,primary_contact,email,phone,portal_status,created_at
+cust_hva_uuid,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,Harbour View Property Management,"1200 - 555 Hastings St, Vancouver, BC",Ewan Davidson,reports@ewandf.ca,604-555-0144,active,2026-02-01 10:00:00
+cust_pmg_uuid,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,Pacific Medical Group,"450 - 1200 West Broadway, Vancouver, BC",Dr. Sarah Jenkins,s.jenkins@pacmedical.ca,604-555-0177,active,2026-02-15 11:00:00
+cust_crc_uuid,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,City of Richmond Facilities,"6911 No. 3 Road, Richmond, BC",James Vance,j.vance@richmond.ca,604-276-4000,inactive,2026-03-01 09:00:00`;
+    }
+    if (tableName === "buildings") {
+      return `id,customer_id,name,address,occupancy_type,num_floors,compliance_status,created_at
+bld_hva_uuid,cust_hva_uuid,Harbour View Apartments,"1640 Harbour View Dr, Vancouver, BC",Residential (Group C),4,deficient,2026-02-01 10:30:00
+bld_pmg_uuid,cust_pmg_uuid,Pacific Medical Center,"1200 West Broadway, Vancouver, BC",Care (Group B2),6,compliant,2026-02-15 11:30:00
+bld_crc_uuid,cust_crc_uuid,Richmond Civic Center,"6911 No. 3 Road, Richmond, BC",Assembly (Group A2),3,compliant,2026-03-01 09:30:00`;
+    }
+    if (tableName === "devices") {
+      return `id,company_id,customer_id,building_id,floor_id,device_code,location,map_x,map_y,status,last_tested_at
+dev_sd_10_uuid,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,cust_hva_uuid,bld_hva_uuid,floor_main_uuid,SD-M-10,Main Corridor East,45.20,38.60,failed,2026-06-04 10:15:00
+dev_supv_01_uuid,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,cust_hva_uuid,bld_hva_uuid,floor_p1_uuid,SUPV-D-01,Main Sprinkler Riser Room,18.40,76.10,deficient,2026-06-04 09:30:00
+dev_facp_01_uuid,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,cust_hva_uuid,bld_hva_uuid,floor_main_uuid,FACP-M-01,Main Lobby Entrance,12.50,15.20,passed,2026-06-04 09:00:00`;
+    }
+    // Default to deficiencies
+    return `id,company_id,building_id,device_id,priority,technical_description,customer_description,status,created_at
+def_sd_10_uuid,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,bld_hva_uuid,dev_sd_10_uuid,critical,Smoke detector failed to activate control panel relays,Smoke detector in main corridor failed testing and needs replacement,open,2026-06-04 10:20:00
+def_supv_01_uuid,ee9c3d2d-27f5-4672-9114-1e293b2dc02d,bld_hva_uuid,dev_supv_01_uuid,warning,Sprinkler supervisory pressure switch leaking,Supervisory switch is leaking slowly and needs adjustment,open,2026-06-04 09:45:00`;
+  };
+
+  const handleDownloadCSV = (tableName: string) => {
+    const text = getSeedCSVData(tableName);
+    const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `seed_${tableName}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const generateSchemaText = (format: "prisma" | "knex" | "sql") => {
     if (format === "prisma") {
       return `datasource db {
@@ -1589,7 +1687,104 @@ CREATE TABLE quotes (
 
         {/* 10. DB MOCKUP */}
         <TabsContent value="database" className="space-y-4 outline-none">
+          
+          {/* Seeding & CSV Exporter Tool Panel */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* Terminal Log Console */}
+            <div className="lg:col-span-2">
+              <Card className="rounded-none bg-slate-950 border-cyan-500/20 font-mono">
+                <CardHeader className="border-b border-cyan-500/10 bg-slate-900/20 py-3.5">
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-xs font-bold text-cyan-400 uppercase flex items-center gap-2">
+                      <Database className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+                      Database Seeder & CSV Exporter
+                    </CardTitle>
+                    <Button
+                      onClick={runSeedingSimulation}
+                      disabled={isSeeding}
+                      className="h-7 px-3 bg-cyan-950 border border-cyan-500 text-cyan-400 rounded-none hover:bg-cyan-500/20 text-[9px] font-bold uppercase disabled:opacity-50"
+                    >
+                      {isSeeding ? "SEEDING..." : "RUN DATABASE SEEDER"}
+                    </Button>
+                  </div>
+                  <CardDescription className="text-[9px] text-slate-400 mt-1">
+                    Simulate loading the 85-device sample dataset into local tables and export mock tables as production-ready CSV files.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 space-y-3">
+                  {/* Console Terminal Screen */}
+                  <div className="bg-black/90 border border-cyan-500/10 p-3 h-[180px] overflow-y-auto font-mono text-[8px] text-emerald-400 space-y-1.5 scrollbar-thin">
+                    {seedingLogs.length === 0 ? (
+                      <div className="text-slate-500 uppercase italic">
+                        &gt;_ System Idle. Click "Run Database Seeder" to simulate Postgres table initialization.
+                      </div>
+                    ) : (
+                      seedingLogs.map((log, i) => (
+                        <div key={i} className="leading-relaxed">
+                          <span className="text-cyan-500">&gt;&gt;</span> {log}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* CSV Export & Seed Data Preview Panel */}
+            <div className="lg:col-span-1">
+              <Card className="rounded-none bg-slate-950 border-cyan-500/20 font-mono h-full flex flex-col">
+                <CardHeader className="border-b border-cyan-500/10 bg-slate-900/20 py-3.5">
+                  <CardTitle className="text-xs font-bold text-cyan-400 uppercase flex items-center gap-2">
+                    <Download className="w-3.5 h-3.5 text-cyan-400" />
+                    CSV Data Exporter
+                  </CardTitle>
+                  <CardDescription className="text-[9px] text-slate-400 mt-1">
+                    Download realistic seeded relational datasets in raw CSV format.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 flex-1 flex flex-col gap-3 min-h-0">
+                  
+                  {/* Table Select for CSV Preview */}
+                  <div className="space-y-1.5">
+                    <span className="text-[8px] text-slate-500 uppercase font-bold block">Select Seed Dataset:</span>
+                    <div className="grid grid-cols-2 gap-1">
+                      {["companies", "users", "customers", "buildings", "devices", "deficiencies"].map((tbl) => (
+                        <button
+                          key={tbl}
+                          onClick={() => setSeedPreviewTable(tbl)}
+                          className={`py-1 text-[8px] font-bold uppercase border text-center ${
+                            seedPreviewTable === tbl
+                              ? "bg-cyan-950 border-cyan-500 text-cyan-400"
+                              : "bg-transparent border-slate-800 text-slate-400 hover:text-slate-300"
+                          }`}
+                        >
+                          {tbl}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* CSV Content Preview */}
+                  <div className="flex-1 bg-slate-900/40 border border-cyan-500/10 p-2.5 overflow-auto max-h-[110px] relative font-mono text-[7px] text-slate-300 whitespace-pre scrollbar-thin">
+                    {getSeedCSVData(seedPreviewTable)}
+                  </div>
+
+                  <Button
+                    onClick={() => handleDownloadCSV(seedPreviewTable)}
+                    className="w-full h-8 bg-cyan-950 border border-cyan-500 text-cyan-400 rounded-none hover:bg-cyan-500/20 text-[9px] font-bold uppercase flex items-center justify-center gap-1.5"
+                  >
+                    <Download className="w-3 h-3" />
+                    <span>DOWNLOAD SEED_{seedPreviewTable.toUpperCase()}.CSV</span>
+                  </Button>
+
+                </CardContent>
+              </Card>
+            </div>
+
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
             
             {/* Table Mockups List */}
             <div className="lg:col-span-2 space-y-4">
