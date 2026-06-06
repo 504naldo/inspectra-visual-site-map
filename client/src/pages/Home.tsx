@@ -46,14 +46,12 @@ export default function Home() {
   const [setupSteps, setSetupSteps] = useState<SetupStep[]>(MOCK_SETUP_STEPS);
   
   // Navigation & View State
-  const [activePage, setActivePage] = useState<string>("map"); 
-  // "buildings" | "map" | "deficiencies" | "reports" | "quotes" | "sharing" | "setup" | "company" | "customers" | "technicians" | "templates" | "library" | "deficiency-lang" | "import" | "architecture"
+  const [activePage, setActivePage] = useState<string>("dashboard");
   const [activeFloor, setActiveFloor] = useState<string>("Main Floor");
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
-  
-  // Multi-Role & Theme States
-  const [activeRole, setActiveRole] = useState<string>("fire_company"); // "fire_company" | "property_manager" | "government"
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
+
+  // Role fixed to fire_company for MVP — multi-role is a future feature
+  const activeRole = "fire_company";
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState("");
@@ -81,115 +79,10 @@ export default function Home() {
     setTerminalLogs(prev => [...prev, `[${timestamp}] ${msg}`].slice(-50)); // keep last 50
   };
 
-  // Walkthrough State
-  const [walkthroughStep, setWalkthroughStep] = useState<number>(0); // 0 means not started
-  const [walkthroughCompleted, setWalkthroughCompleted] = useState<boolean>(false);
-
-  // Effect to apply global theme class
+  // Apply dark mode on mount (dark-only for MVP)
   useEffect(() => {
-    const root = window.document.documentElement;
-    if (theme === "light") {
-      root.classList.remove("dark");
-      root.classList.add("light");
-    } else {
-      root.classList.remove("light");
-      root.classList.add("dark");
-    }
-  }, [theme]);
-
-  // Handle active simulation sweep
-  useEffect(() => {
-    if (isSimulating) {
-      addLog("SYS_SIM // AUTOMATED TELEMETRY SWEEP INITIATED.");
-      toast.success("SIMULATION SWEEP ACTIVE", {
-        description: "Scanning and testing devices sequentially every 1.5 seconds."
-      });
-
-      simIntervalRef.current = setInterval(() => {
-        setDevices(currentDevices => {
-          // Find all untested devices
-          const untested = currentDevices.filter(d => d.status === "not_tested");
-          if (untested.length === 0) {
-            setIsSimulating(false);
-            addLog("SYS_SIM // SWEEP COMPLETED. ALL REGISTERED HARDWARE COMPLIANT OR LOGGED.");
-            toast.success("SWEEP COMPLETED", { description: "All devices have been inspected." });
-            return currentDevices;
-          }
-
-          // Pick a random device
-          const randomIndex = Math.floor(Math.random() * untested.length);
-          const targetDevice = untested[randomIndex];
-
-          // Determine random inspection outcome
-          // 80% pass, 10% fail, 5% deficiency, 5% no access
-          const rand = Math.random();
-          let finalStatus: DeviceStatus = "passed";
-          let note = "";
-
-          if (rand > 0.95) {
-            finalStatus = "no_access";
-            note = "No access - Door locked / tenant away.";
-          } else if (rand > 0.90) {
-            finalStatus = "deficiency";
-            note = "Minor dust build-up / cover cracked.";
-          } else if (rand > 0.80) {
-            finalStatus = "failed";
-            note = "Failed battery backup load test.";
-          }
-
-          // Log the sweep event
-          const statusText = finalStatus.toUpperCase();
-          addLog(`SYS_SWEEP // TESTED: ${targetDevice.label} [${targetDevice.type}] -> ${statusText}`);
-
-          // Trigger sonner toast for critical failure/deficiencies
-          if (finalStatus === "failed") {
-            toast.error(`ALARM // DEFICIENCY DETECTED: ${targetDevice.label}`, {
-              description: `${targetDevice.type} at ${targetDevice.floor} failed test.`
-            });
-          } else if (finalStatus === "deficiency") {
-            toast.warning(`WARNING // MINOR ISSUE: ${targetDevice.label}`, {
-              description: `${targetDevice.type} needs attention.`
-            });
-          } else if (finalStatus === "passed") {
-            toast.success(`TEST_PASS // COMPLIANT: ${targetDevice.label}`);
-          }
-
-          // Return updated device array
-          return currentDevices.map(d => {
-            if (d.id === targetDevice.id) {
-              return {
-                ...d,
-                status: finalStatus,
-                lastTestedAt: new Date().toISOString(),
-                lastTestedBy: "R. Daniels (Tech #401)",
-                deficiencyNote: note,
-                serviceHistory: [
-                  {
-                    date: new Date().toISOString().split('T')[0],
-                    action: `Simulated Inspection: ${statusText}`,
-                    technician: "R. Daniels (Tech #401)"
-                  },
-                  ...(d.serviceHistory || [])
-                ]
-              };
-            }
-            return d;
-          });
-        });
-      }, 1500);
-    } else {
-      if (simIntervalRef.current) {
-        clearInterval(simIntervalRef.current);
-        addLog("SYS_SIM // AUTOMATED TELEMETRY SWEEP SUSPENDED.");
-      }
-    }
-
-    return () => {
-      if (simIntervalRef.current) {
-        clearInterval(simIntervalRef.current);
-      }
-    };
-  }, [isSimulating]);
+    document.documentElement.classList.add("dark");
+  }, []);
 
   // Auto-scroll terminal to latest log entry
   useEffect(() => {
@@ -395,6 +288,107 @@ export default function Home() {
   // Render the proper active page view
   const renderActivePageContent = () => {
     switch (activePage) {
+      case "dashboard":
+        return (
+          <div className="flex-1 p-6 overflow-y-auto">
+            <div className="max-w-3xl mx-auto space-y-6">
+              <div>
+                <h2 className="text-xl font-bold text-cyan-300 uppercase tracking-wider">Harbour View Apartments</h2>
+                <p className="text-slate-500 text-sm mt-1">123 Harbour View Drive, Vancouver, BC · Multi-Family Residential</p>
+              </div>
+
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {[
+                  { label: "Total Devices", value: totalCount, color: "text-cyan-300" },
+                  { label: "Tested", value: testedCount, color: "text-cyan-300" },
+                  { label: "Passed", value: passedCount, color: "text-emerald-400" },
+                  { label: "Open Issues", value: failedCount + warningCount, color: (failedCount + warningCount) > 0 ? "text-rose-400" : "text-emerald-400" },
+                ].map(({ label, value, color }) => (
+                  <div key={label} className="bg-slate-900/60 border border-cyan-500/10 p-4">
+                    <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">{label}</div>
+                    <div className={`text-2xl font-bold ${color}`}>{value}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-slate-900/60 border border-cyan-500/10 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold">Inspection Progress</span>
+                  <span className="text-xs text-slate-400">{testedCount} / {totalCount} devices tested</span>
+                </div>
+                <div className="h-2 bg-slate-800">
+                  <div
+                    className={`h-2 transition-all ${compliancePercentage > 90 ? "bg-emerald-500" : "bg-amber-500"}`}
+                    style={{ width: `${totalCount > 0 ? (testedCount / totalCount) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  onClick={() => setActivePage("map")}
+                  className="flex items-center gap-3 p-4 bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 transition-colors text-left"
+                >
+                  <MapIcon className="w-5 h-5 text-cyan-400 shrink-0" />
+                  <div>
+                    <div className="font-bold text-sm uppercase">Open Site Map</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">View floor plan and device pins</div>
+                  </div>
+                  <ArrowRight className="w-4 h-4 ml-auto text-slate-600" />
+                </button>
+                <button
+                  onClick={() => setActivePage("deficiencies")}
+                  className={`flex items-center gap-3 p-4 border text-left transition-colors ${
+                    (failedCount + warningCount) > 0
+                      ? "bg-rose-950/20 border-rose-500/20 text-rose-300 hover:bg-rose-500/10"
+                      : "bg-slate-900/40 border-cyan-500/10 text-slate-400 hover:bg-cyan-500/5"
+                  }`}
+                >
+                  <AlertTriangle className={`w-5 h-5 shrink-0 ${(failedCount + warningCount) > 0 ? "text-rose-400" : "text-slate-500"}`} />
+                  <div>
+                    <div className="font-bold text-sm uppercase">Deficiencies</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">{failedCount + warningCount} open issues</div>
+                  </div>
+                  <ArrowRight className="w-4 h-4 ml-auto text-slate-600" />
+                </button>
+              </div>
+
+              <div className="bg-slate-900/60 border border-cyan-500/10">
+                <div className="px-4 py-3 border-b border-cyan-500/10">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold">Floor Status</span>
+                </div>
+                {FLOORS.map(floor => {
+                  const floorDevices = devices.filter(d => d.floor === floor);
+                  const floorTested = floorDevices.filter(d => d.status !== "not_tested").length;
+                  const floorIssues = floorDevices.filter(d => d.status === "failed" || d.status === "deficiency").length;
+                  return (
+                    <button
+                      key={floor}
+                      onClick={() => { setActiveFloor(floor); setActivePage("map"); }}
+                      className="w-full flex items-center gap-4 px-4 py-3 border-b border-cyan-500/5 last:border-0 hover:bg-cyan-500/5 transition-colors text-left"
+                    >
+                      <span className="text-xs font-bold uppercase text-cyan-300 w-32 shrink-0">{floor}</span>
+                      <div className="flex-1 h-1.5 bg-slate-800">
+                        <div
+                          className="h-1.5 bg-cyan-500/60 transition-all"
+                          style={{ width: `${floorDevices.length > 0 ? (floorTested / floorDevices.length) * 100 : 0}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-slate-500 w-24 text-right shrink-0">{floorTested}/{floorDevices.length} tested</span>
+                      {floorIssues > 0
+                        ? <span className="text-[10px] font-bold text-rose-400 w-16 text-right shrink-0">{floorIssues} issues</span>
+                        : floorTested === floorDevices.length && floorDevices.length > 0
+                        ? <span className="text-[10px] font-bold text-emerald-400 w-16 text-right shrink-0">Clear</span>
+                        : <span className="text-[10px] text-slate-600 w-16 text-right shrink-0">Pending</span>
+                      }
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+
       case "architecture":
         return <SystemArchitectureView />;
       case "buildings":
@@ -580,325 +574,106 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#050814] text-cyan-400 font-mono selection:bg-cyan-500/20 selection:text-cyan-300">
+    <div className="min-h-screen flex flex-col bg-[#050814] text-slate-300 font-mono selection:bg-cyan-500/20 selection:text-cyan-300">
       
-      {/* Top Header Panel */}
-      <header className="h-16 border-b border-cyan-500/20 bg-slate-950/90 backdrop-blur-md px-6 flex items-center justify-between z-30 shrink-0">
-        
-        {/* Left: Branding & Portfolio Switcher */}
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-cyan-950 border border-cyan-500/40 rounded-none shadow-[0_0_10px_rgba(6,182,212,0.3)] animate-pulse">
-              <Shield className="w-5 h-5 text-cyan-400" />
-            </div>
-            <div>
-              <h1 className="text-sm font-bold tracking-widest text-cyan-300 uppercase leading-none">INSPECTRA_VISUAL</h1>
-              <span className="text-[9px] text-slate-500 tracking-wider uppercase font-bold mt-1 block">LIFE-SAFETY_MAPPING_OS</span>
-            </div>
+      {/* Header */}
+      <header className="h-14 border-b border-cyan-500/20 bg-slate-950/90 backdrop-blur-md px-5 flex items-center justify-between z-30 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="p-1.5 bg-cyan-950 border border-cyan-500/40">
+            <Shield className="w-4 h-4 text-cyan-400" />
           </div>
-
-          {/* Building Portfolio Badge */}
-          <div className="h-8 w-px bg-cyan-500/10 hidden sm:block" />
-          <div className="hidden sm:flex items-center gap-2 bg-slate-900/50 border border-cyan-500/10 px-3 py-1.5">
-            <Building className="w-4 h-4 text-cyan-500" />
-            <div className="text-left">
-              <span className="text-[8px] text-slate-500 uppercase leading-none font-bold block">ACTIVE_BUILDING:</span>
-              <span className="text-[10px] text-cyan-300 font-bold uppercase leading-none">HARBOUR VIEW APARTMENTS</span>
-            </div>
-          </div>
+          <span className="text-sm font-bold tracking-widest text-cyan-300 uppercase hidden sm:block">Inspectra</span>
         </div>
 
-        {/* Center-Right: Quick Counters */}
-        <div className="hidden lg:flex items-center gap-4 text-[10px]">
-          <div className="bg-slate-900/30 border border-cyan-500/10 px-3 py-1 text-center min-w-[80px]">
-            <span className="text-slate-500 text-[8px] uppercase font-bold block">DEVICES</span>
-            <span className="text-cyan-300 font-bold text-sm">{totalCount}</span>
-          </div>
-          <div className="bg-slate-900/30 border border-cyan-500/10 px-3 py-1 text-center min-w-[80px]">
-            <span className="text-slate-500 text-[8px] uppercase font-bold block">TESTED</span>
-            <span className="text-cyan-300 font-bold text-sm">{testedCount}</span>
-          </div>
-          <div className="bg-slate-900/30 border border-cyan-500/10 px-3 py-1 text-center min-w-[80px]">
-            <span className="text-slate-500 text-[8px] uppercase font-bold block">COMPLIANCE</span>
-            <span className={`font-bold text-sm ${compliancePercentage > 90 ? 'text-emerald-400' : 'text-amber-400'}`}>
+        <div className="flex items-center gap-2">
+          <Building className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+          <span className="text-xs font-bold text-cyan-300 uppercase">Harbour View Apartments</span>
+          {activePage === "map" && (
+            <>
+              <span className="text-slate-600 mx-0.5">/</span>
+              <select
+                value={activeFloor}
+                onChange={(e) => setActiveFloor(e.target.value)}
+                className="bg-slate-900 border border-cyan-500/20 px-2 py-1 text-xs text-cyan-400 font-mono rounded-none focus:outline-none focus:border-cyan-500/60"
+              >
+                {FLOORS.map(f => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </>
+          )}
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-1.5">
+            <span className="text-[10px] text-slate-500 uppercase font-bold">Compliance:</span>
+            <span className={`text-sm font-bold ${compliancePercentage > 90 ? "text-emerald-400" : "text-amber-400"}`}>
               {compliancePercentage}%
             </span>
           </div>
-        </div>
-
-        {/* Right Side: Role Selector, Floor dropdown, Theme, Sweep */}
-        <div className="flex items-center gap-3">
-          
-          {/* Floor selector (only visible on map view) */}
-          {activePage === "map" && (
-            <select 
-              value={activeFloor} 
-              onChange={(e) => setActiveFloor(e.target.value)}
-              className="bg-slate-900 border border-cyan-500/30 px-3 py-1.5 text-xs text-cyan-400 font-mono rounded-none uppercase focus:ring-cyan-500/40"
-            >
-              {FLOORS.map(f => <option key={f} value={f}>{f.toUpperCase()}</option>)}
-            </select>
+          {(failedCount + warningCount) > 0 && (
+            <div className="flex items-center gap-1">
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+              <span className="text-sm font-bold text-rose-400">{failedCount + warningCount}</span>
+            </div>
           )}
-
-          {/* Role selector dropdown */}
-          <div className="flex items-center gap-1.5 bg-slate-900/50 border border-cyan-500/20 px-2 py-1.5">
-            <User className="w-3.5 h-3.5 text-cyan-500" />
-            <select 
-              value={activeRole} 
-              onChange={(e) => {
-                setActiveRole(e.target.value);
-                addLog(`ROLE_CHANGED // SWITCHED TO: ${e.target.value.toUpperCase()}`);
-                toast.info("ROLE SWITCHED", { description: `Operating as ${e.target.value.replace("_", " ")}.` });
-              }}
-              className="bg-transparent border-none text-[10px] text-cyan-400 font-mono rounded-none uppercase focus:ring-0 focus-visible:ring-0 p-0"
-            >
-              <option value="fire_company">Fire Company</option>
-              <option value="property_manager">Property Manager</option>
-              <option value="government">Government / FD</option>
-            </select>
+          <div className="h-7 w-7 bg-slate-800 border border-slate-700 flex items-center justify-center">
+            <User className="w-4 h-4 text-slate-400" />
           </div>
-
-          {/* Theme toggle */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setTheme(prev => prev === "light" ? "dark" : "light")}
-            className="h-9 w-9 rounded-none border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/10"
-          >
-            {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-          </Button>
-
-          {/* Sweep Trigger (only visible on map view for fire_company) */}
-          {activePage === "map" && activeRole === "fire_company" && (
-            <Button 
-              onClick={() => setIsSimulating(!isSimulating)}
-              className={`h-9 rounded-none text-xs font-bold px-4 flex items-center gap-2 ${
-                isSimulating 
-                  ? "bg-rose-950/60 hover:bg-rose-900 border border-rose-500 text-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.3)] animate-pulse" 
-                  : "bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-500 text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.3)]"
-              }`}
-            >
-              {isSimulating ? <Square className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-              <span>{isSimulating ? "STOP_SWEEP" : "RUN_SWEEP"}</span>
-            </Button>
-          )}
-
-          {/* Master Reset Button */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={handleResetSimulation}
-            className="h-9 w-9 rounded-none border border-cyan-500/20 text-slate-500 hover:text-cyan-400 hover:bg-cyan-500/10"
-            title="Reset Simulation Data"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </Button>
         </div>
       </header>
 
-      {/* Main Workspace Grid */}
-      <div className="flex-1 flex min-h-0 relative">
+      {/* Main Workspace */}
+      <div className="flex-1 flex min-h-0">
         
         {/* Navigation Sidebar */}
-        <aside className="w-16 border-r border-cyan-500/20 bg-slate-950/95 flex flex-col items-center py-4 gap-3 z-20 shrink-0 overflow-y-auto">
-          
-          {/* Standard Navigation */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setActivePage("buildings")}
-            className={`h-10 w-10 rounded-none border ${activePage === "buildings" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-            title="Buildings Portfolio"
-          >
-            <Building className="w-5 h-5" />
-          </Button>
-
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setActivePage("map")}
-            className={`h-10 w-10 rounded-none border ${activePage === "map" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-            title="Visual Site Map"
-          >
-            <MapIcon className="w-5 h-5" />
-          </Button>
-
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setActivePage("deficiencies")}
-            className={`h-10 w-10 rounded-none border ${activePage === "deficiencies" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-            title="Deficiencies Registry"
-          >
-            <AlertTriangle className="w-5 h-5" />
-          </Button>
-
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setActivePage("reports")}
-            className={`h-10 w-10 rounded-none border ${activePage === "reports" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-            title="Compliance Reports"
-          >
-            <FileText className="w-5 h-5" />
-          </Button>
-
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setActivePage("quotes")}
-            className={`h-10 w-10 rounded-none border ${activePage === "quotes" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-            title="Repair Quotes"
-          >
-            <DollarSign className="w-5 h-5" />
-          </Button>
-
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setActivePage("sharing")}
-            className={`h-10 w-10 rounded-none border ${activePage === "sharing" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-            title="Municipal Data Sharing"
-          >
-            <ShieldCheck className="w-5 h-5" />
-          </Button>
-
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setActivePage("setup")}
-            className={`h-10 w-10 rounded-none border ${activePage === "setup" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-            title="Setup/Onboarding Wizard"
-          >
-            <Settings className="w-5 h-5" />
-          </Button>
-
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setActivePage("architecture")}
-            className={`h-10 w-10 rounded-none border ${activePage === "architecture" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-            title="System Architecture & Database Schema"
-          >
-            <Cpu className="w-5 h-5" />
-          </Button>
-
-          {/* FIRE COMPANY SPECIFIC NAVIGATION SEPARATOR */}
-          {activeRole === "fire_company" && (
-            <>
-              <div className="w-8 h-px bg-cyan-500/10 my-1" />
-              
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setActivePage("company")}
-                className={`h-10 w-10 rounded-none border ${activePage === "company" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-                title="Company Profile & Team"
-              >
-                <Users2 className="w-5 h-5" />
-              </Button>
-
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setActivePage("customers")}
-                className={`h-10 w-10 rounded-none border ${activePage === "customers" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-                title="Client Management"
-              >
-                <Users className="w-5 h-5" />
-              </Button>
-
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setActivePage("technicians")}
-                className={`h-10 w-10 rounded-none border ${activePage === "technicians" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-                title="Technician Metrics"
-              >
-                <ClipboardList className="w-5 h-5" />
-              </Button>
-
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setActivePage("templates")}
-                className={`h-10 w-10 rounded-none border ${activePage === "templates" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-                title="Inspection Checklists"
-              >
-                <FileText className="w-5 h-5 text-cyan-500/80" />
-              </Button>
-
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setActivePage("library")}
-                className={`h-10 w-10 rounded-none border ${activePage === "library" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-                title="Device Library"
-              >
-                <Library className="w-5 h-5" />
-              </Button>
-
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setActivePage("deficiency-lang")}
-                className={`h-10 w-10 rounded-none border ${activePage === "deficiency-lang" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-                title="Deficiency Language Library"
-              >
-                <FileCode className="w-5 h-5" />
-              </Button>
-
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setActivePage("import")}
-                className={`h-10 w-10 rounded-none border ${activePage === "import" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-                title="CSV Bulk Device Import"
-              >
-                <Database className="w-5 h-5" />
-              </Button>
-            </>
-          )}
+        <aside className="w-52 border-r border-cyan-500/20 bg-slate-950/95 flex flex-col z-20 shrink-0 select-none">
+          <nav className="flex-1 py-2">
+            {([
+              { page: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
+              { page: "buildings", icon: Building, label: "Buildings" },
+              { page: "map", icon: MapIcon, label: "Site Map" },
+              { page: "deficiencies", icon: AlertTriangle, label: "Deficiencies" },
+              { page: "reports", icon: FileText, label: "Reports" },
+            ] as { page: string; icon: React.ElementType; label: string }[]).map(({ page, icon: Icon, label }) => {
+              const badge =
+                page === "deficiencies" && failedCount + warningCount > 0
+                  ? failedCount + warningCount
+                  : undefined;
+              return (
+                <button
+                  key={page}
+                  onClick={() => setActivePage(page)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
+                    activePage === page
+                      ? "bg-cyan-500/10 text-cyan-300 border-r-2 border-cyan-500"
+                      : "text-slate-500 hover:text-cyan-400 hover:bg-cyan-500/5 border-r-2 border-transparent"
+                  }`}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  <span className="font-medium">{label}</span>
+                  {badge !== undefined && (
+                    <span className="ml-auto text-[10px] bg-rose-500/20 text-rose-400 border border-rose-500/30 px-1.5 py-0.5 font-bold">
+                      {badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+          <div className="px-4 py-3 border-t border-cyan-500/10">
+            <div className="text-[9px] text-slate-600 uppercase tracking-widest">v0.1 — MVP Preview</div>
+          </div>
         </aside>
 
-        {/* Dynamic View Workspace Content */}
+        {/* Page content */}
         {renderActivePageContent()}
       </div>
 
-      {/* Scrolling Command-Line Telemetry Feed Footer */}
-      <footer className="h-16 border-t border-cyan-500/20 bg-slate-950/95 px-6 flex items-center gap-4 shrink-0 font-mono text-[10px] z-30">
-        <span className="text-slate-500 font-bold uppercase shrink-0">TELEMETRY_LOGS //</span>
-        <div ref={terminalLogRef} className="flex-1 h-10 overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-cyan-500/20">
-          {terminalLogs.map((log, i) => (
-            <div key={i} className="text-cyan-500/80 leading-relaxed uppercase">{log}</div>
-          ))}
-        </div>
-      </footer>
-
-      {/* DEFICIENCY INPUT MODAL */}
-      <DeficiencyModal 
+      {/* Deficiency Modal */}
+      <DeficiencyModal
         isOpen={isDeficiencyModalOpen}
         onClose={() => setIsDeficiencyModalOpen(false)}
         isFailure={deficiencyModalIsFailure}
         onSubmit={handleAddDeficiency}
-      />
-
-      {/* INTERACTIVE WALKTHROUGH PANEL */}
-      <DemoWalkthrough 
-        currentStep={walkthroughStep}
-        onSetStep={setWalkthroughStep}
-        completed={walkthroughCompleted}
-        onSetCompleted={setWalkthroughCompleted}
-        activeRole={activeRole}
-        onSetRole={setActiveRole}
-        activePage={activePage}
-        onSetPage={setActivePage}
-        devices={devices}
-        selectedDeviceId={selectedDeviceId}
-        onSelectDevice={setSelectedDeviceId}
-        activeFloor={activeFloor}
-        onSetFloor={setActiveFloor}
-        quotes={quotes}
       />
     </div>
   );
