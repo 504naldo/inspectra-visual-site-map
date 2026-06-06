@@ -30,7 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { 
   Flame, Shield, Radio, Droplets, Waves, ShieldAlert, Compass, 
-  ArrowRight, Key, Search, Play, Pause, RotateCcw, LayoutDashboard, 
+  ArrowRight, Key, Search, Play, Pause, Square, RotateCcw, LayoutDashboard,
   Map as MapIcon, FileText, DollarSign, ShieldCheck, Sun, Moon, 
   User, Building, ShieldAlert as GovIcon, PhoneCall, AlertTriangle, Settings, CheckCircle2,
   Users, Users2, Library, FileCode, Database, ClipboardList, Cpu
@@ -63,6 +63,7 @@ export default function Home() {
   // Simulation State
   const [isSimulating, setIsSimulating] = useState(false);
   const simIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const terminalLogRef = useRef<HTMLDivElement>(null);
 
   // Deficiency Modal State
   const [isDeficiencyModalOpen, setIsDeficiencyModalOpen] = useState(false);
@@ -82,7 +83,7 @@ export default function Home() {
 
   // Walkthrough State
   const [walkthroughStep, setWalkthroughStep] = useState<number>(0); // 0 means not started
-  const [walkthroughCompleted, setWalkthroughStepCompleted] = useState<boolean>(false);
+  const [walkthroughCompleted, setWalkthroughCompleted] = useState<boolean>(false);
 
   // Effect to apply global theme class
   useEffect(() => {
@@ -189,6 +190,13 @@ export default function Home() {
       }
     };
   }, [isSimulating]);
+
+  // Auto-scroll terminal to latest log entry
+  useEffect(() => {
+    if (terminalLogRef.current) {
+      terminalLogRef.current.scrollTop = terminalLogRef.current.scrollHeight;
+    }
+  }, [terminalLogs]);
 
   // Update a single device status manually
   const handleUpdateDeviceStatus = (deviceId: string, status: DeviceStatus, note?: string) => {
@@ -413,7 +421,7 @@ export default function Home() {
                     placeholder="SEARCH_HARDWARE_TAG..." 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 bg-slate-900 border-cyan-500/20 text-cyan-400 placeholder:text-slate-600 rounded-none h-9 text-xs focus-visible:ring-cyan-500/50 uppercase animate-pulse"
+                    className="pl-9 bg-slate-900 border-cyan-500/20 text-cyan-400 placeholder:text-slate-600 rounded-none h-9 text-xs focus-visible:ring-cyan-500/50 uppercase"
                   />
                 </div>
                 
@@ -453,12 +461,12 @@ export default function Home() {
                     const matchesCat = categoryFilter === "all" || d.category === categoryFilter;
                     const matchesStatus = statusFilter === "all" || d.status === statusFilter;
                     const matchesFloor = d.floor === activeFloor;
-                    
+
                     // Government Emergency Filter
                     if (activeRole === "government") {
                       const isEmergency = [
-                        "Fire Alarm Panel", "Annunciator", "FDC", "Sprinkler Riser", 
-                        "Lockbox", "Roof Access", "Electrical Shutoff", "GasShutoff", "Standpipe", "Smoke Control Panel"
+                        "Fire Alarm Panel", "Annunciator", "FDC", "Sprinkler Riser",
+                        "Lockbox", "Roof Access", "Electrical Shutoff", "Gas Shutoff", "Standpipe", "Smoke Control Panel"
                       ].includes(d.type);
                       return matchesSearch && matchesCat && matchesStatus && matchesFloor && isEmergency;
                     }
@@ -572,7 +580,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#050814] text-cyan-400 font-mono select-none selection:bg-cyan-500/20 selection:text-cyan-300">
+    <div className="min-h-screen flex flex-col bg-[#050814] text-cyan-400 font-mono selection:bg-cyan-500/20 selection:text-cyan-300">
       
       {/* Top Header Panel */}
       <header className="h-16 border-b border-cyan-500/20 bg-slate-950/90 backdrop-blur-md px-6 flex items-center justify-between z-30 shrink-0">
@@ -670,7 +678,7 @@ export default function Home() {
                   : "bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-500 text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.3)]"
               }`}
             >
-              {isSimulating ? <Pause className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+              {isSimulating ? <Square className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
               <span>{isSimulating ? "STOP_SWEEP" : "RUN_SWEEP"}</span>
             </Button>
           )}
@@ -860,7 +868,7 @@ export default function Home() {
       {/* Scrolling Command-Line Telemetry Feed Footer */}
       <footer className="h-16 border-t border-cyan-500/20 bg-slate-950/95 px-6 flex items-center gap-4 shrink-0 font-mono text-[10px] z-30">
         <span className="text-slate-500 font-bold uppercase shrink-0">TELEMETRY_LOGS //</span>
-        <div className="flex-1 h-10 overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-cyan-500/20">
+        <div ref={terminalLogRef} className="flex-1 h-10 overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-cyan-500/20">
           {terminalLogs.map((log, i) => (
             <div key={i} className="text-cyan-500/80 leading-relaxed uppercase">{log}</div>
           ))}
@@ -880,7 +888,7 @@ export default function Home() {
         currentStep={walkthroughStep}
         onSetStep={setWalkthroughStep}
         completed={walkthroughCompleted}
-        onSetCompleted={setWalkthroughStepCompleted}
+        onSetCompleted={setWalkthroughCompleted}
         activeRole={activeRole}
         onSetRole={setActiveRole}
         activePage={activePage}

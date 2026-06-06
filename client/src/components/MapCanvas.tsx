@@ -53,6 +53,11 @@ export default function MapCanvas({
     setPan({ x: 0, y: 0 });
   };
 
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    handleZoom(e.deltaY < 0 ? "in" : "out");
+  };
+
   // Mouse Drag / Pan Handlers
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return; // Only left click
@@ -192,28 +197,71 @@ export default function MapCanvas({
           </>
         )}
 
-        {(activeFloor === "Main Floor" || activeFloor === "Level 2" || activeFloor === "Level 3") && (
+        {activeFloor === "Main Floor" && (
           <>
             {/* Center Corridor */}
             <rect x="50" y="200" width="700" height="100" stroke={wallColor} strokeWidth="2" fill="none" />
-            
             {/* Vertical Office Dividers - Top Row */}
             <line x1="200" y1="50" x2="200" y2="200" stroke={wallColor} strokeWidth="2" />
             <line x1="350" y1="50" x2="350" y2="200" stroke={wallColor} strokeWidth="2" />
             <line x1="500" y1="50" x2="500" y2="200" stroke={wallColor} strokeWidth="2" />
             <line x1="650" y1="50" x2="650" y2="200" stroke={wallColor} strokeWidth="2" />
-
             {/* Vertical Office Dividers - Bottom Row */}
             <line x1="250" y1="300" x2="250" y2="450" stroke={wallColor} strokeWidth="2" />
             <line x1="550" y1="300" x2="550" y2="450" stroke={wallColor} strokeWidth="2" />
-
             {/* Lobby & Entrance */}
             <rect x="350" y="300" width="200" height="150" stroke={wallColor} strokeWidth="2" fill="rgba(6,182,212,0.05)" />
             <text x="450" y="380" fill={theme === "light" ? "#475569" : "#22d3ee"} fontSize="11" fontFamily="monospace" textAnchor="middle" fontWeight="bold">MAIN_LOBBY</text>
-
             {/* Stairwell A */}
             <rect x="50" y="200" width="80" height="100" stroke={wallColor} strokeWidth="2" fill="rgba(244,63,94,0.05)" />
             <text x="90" y="255" fill={theme === "light" ? "#475569" : "#f43f5e"} fontSize="9" fontFamily="monospace" textAnchor="middle">STAIR_A</text>
+          </>
+        )}
+
+        {activeFloor === "Level 2" && (
+          <>
+            {/* Center Corridor */}
+            <rect x="50" y="200" width="700" height="100" stroke={wallColor} strokeWidth="2" fill="none" />
+            {/* Vertical Unit Dividers - Top Row (5 units) */}
+            <line x1="175" y1="50" x2="175" y2="200" stroke={wallColor} strokeWidth="2" />
+            <line x1="300" y1="50" x2="300" y2="200" stroke={wallColor} strokeWidth="2" />
+            <line x1="425" y1="50" x2="425" y2="200" stroke={wallColor} strokeWidth="2" />
+            <line x1="550" y1="50" x2="550" y2="200" stroke={wallColor} strokeWidth="2" />
+            <line x1="675" y1="50" x2="675" y2="200" stroke={wallColor} strokeWidth="2" />
+            {/* Vertical Unit Dividers - Bottom Row */}
+            <line x1="200" y1="300" x2="200" y2="450" stroke={wallColor} strokeWidth="2" />
+            <line x1="400" y1="300" x2="400" y2="450" stroke={wallColor} strokeWidth="2" />
+            <line x1="600" y1="300" x2="600" y2="450" stroke={wallColor} strokeWidth="2" />
+            {/* Laundry Room */}
+            <rect x="50" y="300" width="150" height="150" stroke={wallColor} strokeWidth="2" fill="rgba(6,182,212,0.05)" />
+            <text x="125" y="378" fill={theme === "light" ? "#475569" : "#22d3ee"} fontSize="10" fontFamily="monospace" textAnchor="middle">LAUNDRY_RM</text>
+            {/* Stairwell A */}
+            <rect x="50" y="200" width="80" height="100" stroke={wallColor} strokeWidth="2" fill="rgba(244,63,94,0.05)" />
+            <text x="90" y="255" fill={theme === "light" ? "#475569" : "#f43f5e"} fontSize="9" fontFamily="monospace" textAnchor="middle">STAIR_A</text>
+            <text x="650" y="440" fill={theme === "light" ? "#94a3b8" : "#0891b2"} fontSize="9" fontFamily="monospace" textAnchor="middle" opacity="0.5">UNITS_201-216</text>
+          </>
+        )}
+
+        {activeFloor === "Level 3" && (
+          <>
+            {/* Center Corridor */}
+            <rect x="50" y="200" width="700" height="100" stroke={wallColor} strokeWidth="2" fill="none" />
+            {/* Vertical Dividers - Top Row (3 larger penthouse units) */}
+            <line x1="250" y1="50" x2="250" y2="200" stroke={wallColor} strokeWidth="2" />
+            <line x1="500" y1="50" x2="500" y2="200" stroke={wallColor} strokeWidth="2" />
+            {/* Vertical Dividers - Bottom Row */}
+            <line x1="350" y1="300" x2="350" y2="450" stroke={wallColor} strokeWidth="2" />
+            <line x1="600" y1="300" x2="600" y2="450" stroke={wallColor} strokeWidth="2" />
+            {/* Mechanical Room */}
+            <rect x="50" y="300" width="150" height="150" stroke={wallColor} strokeWidth="2" fill="rgba(244,63,94,0.05)" />
+            <text x="125" y="378" fill={theme === "light" ? "#475569" : "#f43f5e"} fontSize="9" fontFamily="monospace" textAnchor="middle">MECH_RM</text>
+            {/* Storage Room */}
+            <rect x="600" y="300" width="150" height="150" stroke={wallColor} strokeWidth="2" fill="rgba(6,182,212,0.05)" />
+            <text x="675" y="378" fill={theme === "light" ? "#475569" : "#22d3ee"} fontSize="9" fontFamily="monospace" textAnchor="middle">STORAGE_RM</text>
+            {/* Stairwell A */}
+            <rect x="50" y="200" width="80" height="100" stroke={wallColor} strokeWidth="2" fill="rgba(244,63,94,0.05)" />
+            <text x="90" y="255" fill={theme === "light" ? "#475569" : "#f43f5e"} fontSize="9" fontFamily="monospace" textAnchor="middle">STAIR_A</text>
+            <text x="650" y="440" fill={theme === "light" ? "#94a3b8" : "#0891b2"} fontSize="9" fontFamily="monospace" textAnchor="middle" opacity="0.5">UNITS_301-308</text>
           </>
         )}
 
@@ -284,6 +332,7 @@ export default function MapCanvas({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        onWheel={handleWheel}
         className={`flex-1 overflow-hidden relative cursor-grab active:cursor-grabbing transition-colors duration-200 ${
           theme === "light" ? "bg-slate-100" : "bg-[#040814]"
         }`}
@@ -339,7 +388,7 @@ export default function MapCanvas({
                 className={`absolute p-1.5 border transition-all duration-200 focus:outline-none group z-20 ${statusClass} ${
                   isSelected 
                     ? "scale-125 ring-2 ring-cyan-400 ring-offset-2 ring-offset-slate-950 z-30" 
-                    : "hover:scale-115"
+                    : "hover:scale-110"
                 }`}
               >
                 {/* Glowing ring under selected or testing pins */}
