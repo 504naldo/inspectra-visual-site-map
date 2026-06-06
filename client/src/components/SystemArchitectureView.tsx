@@ -432,6 +432,101 @@ export default function SystemArchitectureView() {
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadErdPNG = () => {
+    const canvasWidth = 1200; // higher resolution for PNG
+    const canvasHeight = 675;
+    
+    // Construct SVG nodes and connection lines dynamically
+    let svgLines = "";
+    erdRelations.forEach(rel => {
+      const fromTable = erdTables.find(t => t.id === rel.from);
+      const toTable = erdTables.find(t => t.id === rel.to);
+      if (fromTable && toTable) {
+        // scale coordinates for 1200x675 (factor of 1.5)
+        const startX = (fromTable.x + 80) * 1.5;
+        const startY = (fromTable.y + 60) * 1.5;
+        const endX = (toTable.x + 80) * 1.5;
+        const endY = (toTable.y + 60) * 1.5;
+        const midX = (startX + endX) / 2;
+        const midY = (startY + endY) / 2;
+        
+        svgLines += `
+    <line x1="${startX}" y1="${startY}" x2="${endX}" y2="${endY}" stroke="#06b6d4" stroke-width="2.25" stroke-dasharray="6 6" marker-end="url(#arrow)" />
+    <rect x="${midX - 22.5}" y="${midY - 12}" width="45" height="24" fill="#020617" stroke="#06b6d4" stroke-width="1.5" rx="4.5" />
+    <text x="${midX}" y="${midY + 4.5}" fill="#22d3ee" font-family="monospace" font-size="12" font-weight="bold" text-anchor="middle">${rel.type}</text>`;
+      }
+    });
+
+    let svgTables = "";
+    erdTables.forEach(t => {
+      const isSelected = selectedErdTable === t.id;
+      const cardHeight = (35 + t.fields.length * 15) * 1.5;
+      const strokeColor = isSelected ? "#22d3ee" : "#1e293b";
+      const headerBg = isSelected ? "#083344" : "#0f172a";
+      
+      let fieldsSvg = "";
+      t.fields.forEach((f, idx) => {
+        const isPk = f.includes("(PK)");
+        const isFk = f.includes("(FK)");
+        let fieldColor = "#94a3b8";
+        if (isPk) fieldColor = "#f59e0b";
+        else if (isFk) fieldColor = "#a855f7";
+        
+        fieldsSvg += `
+      <text x="${(t.x + 10) * 1.5}" y="${(t.y + 45 + idx * 15) * 1.5}" fill="${fieldColor}" font-family="monospace" font-size="13.5">${f}</text>`;
+      });
+
+      svgTables += `
+    <!-- Table ${t.name} -->
+    <rect x="${t.x * 1.5}" y="${t.y * 1.5}" width="240" height="${cardHeight}" fill="#020617" stroke="${strokeColor}" stroke-width="2.25" rx="6" />
+    <rect x="${t.x * 1.5}" y="${t.y * 1.5}" width="240" height="42" fill="${headerBg}" stroke="${strokeColor}" stroke-width="2.25" rx="6" />
+    <text x="${(t.x + 10) * 1.5}" y="${(t.y + 27) * 1.5}" fill="#22d3ee" font-family="monospace" font-size="15" font-weight="bold">${t.name.toUpperCase()}</text>
+    ${fieldsSvg}`;
+    });
+
+    const fullSvgContent = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${canvasWidth}" height="${canvasHeight}" viewBox="0 0 ${canvasWidth} ${canvasHeight}">
+  <rect width="100%" height="100%" fill="#020617" />
+  <defs>
+    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="1.5" cy="1.5" r="1.5" fill="rgba(6,182,212,0.07)" />
+    </pattern>
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#06b6d4" />
+    </marker>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#grid)" />
+  
+  ${svgLines}
+  ${svgTables}
+</svg>`;
+
+    const img = new Image();
+    const svgBlob = new Blob([fullSvgContent], { type: "image/svg+xml;charset=utf-8" });
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+      img.src = e.target?.result as string;
+      img.onload = function() {
+        const canvas = document.createElement("canvas");
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          const pngUrl = canvas.toDataURL("image/png");
+          const link = document.createElement("a");
+          link.href = pngUrl;
+          link.download = "inspectra_life_safety_erd.png";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      };
+    };
+    reader.readAsDataURL(svgBlob);
+  };
+
   const handleErdAutoLayout = () => {
     // Force-Directed Layout physics simulation
     const canvasWidth = 800;
@@ -593,10 +688,11 @@ export default function SystemArchitectureView() {
     const columns = targetTable.fields.map(f => f.split(" (")[0].trim());
     const header = columns.join(",");
 
-    // Generate dynamic mock values based on the field types in erdTables
+    // Generate dynamic mock values based on the field types in erdTables (Fully Synced with ERD Customizations)
     const getMockValue = (colName: string, fieldDef: string, rowIndex: number) => {
       const defLower = fieldDef.toLowerCase();
       
+      // UUID/Primary Key generator
       if (defLower.includes("pk")) {
         if (tableName === "companies") return "ee9c3d2d-27f5-4672-9114-1e293b2dc02d";
         if (tableName === "users") return rowIndex === 0 ? "u1b2c3d4-4672-9114-1e29-3b2dc02dc02d" : `u-user-uuid-${rowIndex}`;
@@ -604,9 +700,10 @@ export default function SystemArchitectureView() {
         if (tableName === "buildings") return rowIndex === 0 ? "bld_hva_uuid" : `bld-apt-uuid-${rowIndex}`;
         if (tableName === "devices") return rowIndex === 0 ? "dev_sd_10_uuid" : `dev-pin-uuid-${rowIndex}`;
         if (tableName === "deficiencies") return rowIndex === 0 ? "def_sd_10_uuid" : `def-log-uuid-${rowIndex}`;
-        return `mock-uuid-${tableName}-${rowIndex}`;
+        return `uuid-${tableName}-${rowIndex}`;
       }
 
+      // Foreign Key reference generator
       if (defLower.includes("fk")) {
         if (colName.includes("company")) return "ee9c3d2d-27f5-4672-9114-1e293b2dc02d";
         if (colName.includes("customer")) return rowIndex === 0 ? "cust_hva_uuid" : `cust-client-uuid-${rowIndex}`;
@@ -617,58 +714,84 @@ export default function SystemArchitectureView() {
         return "fk-reference-uuid";
       }
 
-      // Handle specific column names
+      // Handle specific context-aware columns (custom fields map here based on name)
       if (colName === "name") {
         if (tableName === "companies") return "Eagle Eye Fire & Life Safety";
         if (tableName === "users") return rowIndex === 0 ? "R. Daniels" : `Technician #${rowIndex + 1}`;
         if (tableName === "customers") return rowIndex === 0 ? "Harbour View Property Management" : `Property Group #${rowIndex + 1}`;
         if (tableName === "buildings") return rowIndex === 0 ? "Harbour View Apartments" : `SaaS Managed Building #${rowIndex + 1}`;
-        return `Mock Name ${rowIndex + 1}`;
+        return `Custom Name ${rowIndex + 1}`;
       }
 
       if (colName === "email") {
         if (tableName === "companies") return "operations@eagleeyefire.ca";
         if (tableName === "users") return `tech${rowIndex + 1}@eagleeyefire.ca`;
         if (tableName === "customers") return `manager${rowIndex + 1}@propertygroup.ca`;
-        return "info@example.com";
+        return `contact_${rowIndex + 1}@customdomain.ca`;
       }
 
       if (colName === "phone") {
         if (tableName === "companies") return "604-555-0199";
         if (tableName === "users") return `604-555-01${String(rowIndex).padStart(2, '0')}`;
         if (tableName === "customers") return `604-555-02${String(rowIndex).padStart(2, '0')}`;
-        return "604-555-0000";
+        return `604-555-03${String(rowIndex % 100).padStart(2, '0')}`;
       }
 
       if (colName === "address" || colName === "billing_address") {
         if (tableName === "companies") return '"Suite 400, 1055 W Georgia St, Vancouver, BC"';
         if (tableName === "customers") return `"${100 + rowIndex * 10} Hastings St, Vancouver, BC"`;
         if (tableName === "buildings") return `"${1200 + rowIndex * 20} Harbour View Dr, Vancouver, BC"`;
-        return '"123 Main St, Vancouver, BC"';
+        return `"${200 + rowIndex * 5} West Broadway, Vancouver, BC"`;
       }
 
       if (colName === "device_code") return rowIndex === 0 ? "SD-M-10" : `DEV-${rowIndex + 1}`;
       if (colName === "location") return rowIndex === 0 ? "Main Corridor East" : `Floor Location Area #${rowIndex + 1}`;
       if (colName === "map_x") return rowIndex === 0 ? "45.20" : String((15.0 + (rowIndex * 7.5) % 70).toFixed(2));
       if (colName === "map_y") return rowIndex === 0 ? "38.60" : String((20.0 + (rowIndex * 9.3) % 65).toFixed(2));
+      
       if (colName === "status" || colName === "portal_status") {
         if (tableName === "devices") return rowIndex === 0 ? "failed" : (rowIndex % 7 === 0 ? "deficient" : "passed");
         if (tableName === "deficiencies") return "open";
         return "active";
       }
+      
       if (colName === "priority") return rowIndex === 0 ? "critical" : (rowIndex % 3 === 0 ? "critical" : "warning");
       if (colName === "technical_description") return rowIndex === 0 ? "Smoke detector failed to activate control panel relays" : `Hardware unit fails basic diagnostics inspection sweep #${rowIndex + 1}`;
       if (colName === "customer_description") return rowIndex === 0 ? "Smoke detector in main corridor failed testing and needs replacement" : `Safety hardware unit failed checklist protocols and requires service maintenance #${rowIndex + 1}`;
 
-      // Type-based defaults
-      if (defLower.includes("varchar")) return `Sample_Varchar_${rowIndex + 1}`;
-      if (defLower.includes("text")) return `"Sample long-form description text for row ${rowIndex + 1}"`;
-      if (defLower.includes("int")) return String(rowIndex === 0 ? 4 : (3 + (rowIndex % 5)));
-      if (defLower.includes("decimal") || defLower.includes("numeric")) return "125.00";
-      if (defLower.includes("boolean")) return "true";
-      if (defLower.includes("timestamp") || defLower.includes("date")) return "2026-06-05 09:00:00";
+      // Dynamic type-based mock values for custom user-added fields
+      if (defLower.includes("varchar") || defLower.includes("string")) {
+        if (colName.includes("title") || colName.includes("subject")) return `Custom Title ${rowIndex + 1}`;
+        if (colName.includes("code") || colName.includes("serial")) return `CODE-SR-${1000 + rowIndex}`;
+        if (colName.includes("type") || colName.includes("category")) return rowIndex % 2 === 0 ? "Standard" : "Premium";
+        return `Custom_Text_Field_${rowIndex + 1}`;
+      }
+      
+      if (defLower.includes("text")) {
+        return `"This is a dynamically generated long-form text block for custom column '${colName}' on row index ${rowIndex + 1}."`;
+      }
+      
+      if (defLower.includes("int")) {
+        if (colName.includes("count") || colName.includes("quantity")) return String(1 + (rowIndex % 10));
+        if (colName.includes("score") || colName.includes("rating")) return String(80 + (rowIndex % 21));
+        return String(rowIndex === 0 ? 4 : (3 + (rowIndex % 5)));
+      }
+      
+      if (defLower.includes("decimal") || defLower.includes("numeric") || defLower.includes("float") || defLower.includes("double")) {
+        if (colName.includes("price") || colName.includes("cost") || colName.includes("rate")) return String((45.50 + rowIndex * 12.50).toFixed(2));
+        return "125.00";
+      }
+      
+      if (defLower.includes("boolean")) {
+        return rowIndex % 2 === 0 ? "true" : "false";
+      }
+      
+      if (defLower.includes("timestamp") || defLower.includes("date")) {
+        if (colName.includes("expiry") || colName.includes("due") || colName.includes("next")) return `2027-06-${String(1 + (rowIndex % 28)).padStart(2, '0')} 09:00:00`;
+        return `2026-06-${String(1 + (rowIndex % 28)).padStart(2, '0')} 09:00:00`;
+      }
 
-      return `value_${rowIndex + 1}`;
+      return `val_${colName}_${rowIndex + 1}`;
     };
 
     // Generate dynamic mock rows based on requested seedRowCount!
@@ -902,10 +1025,12 @@ generator client {
     });
 
     if (format === "graphql") {
-      let schema = `# GRAPHQL SCHEMA DEFINITION LANGUAGE (SDL)\n# GENERATED BY INSPECTRA SYSTEM ARCHITECTURE EXPORTER\n\n`;
+      let schema = `# GRAPHQL SCHEMA DEFINITION LANGUAGE (SDL) // ENTERPRISE LIFESAFETY SCHEMA\n# GENERATED BY INSPECTRA SYSTEM ARCHITECTURE EXPORTER\n\nscalar DateTime\nscalar Decimal\n\n`;
       
+      // 1. Generate core types
       erdTables.forEach(t => {
-        schema += `type ${t.name.charAt(0) + t.name.slice(1).toLowerCase()} {\n`;
+        const modelName = t.name.charAt(0) + t.name.slice(1).toLowerCase();
+        schema += `type ${modelName} {\n`;
         t.fields.forEach(f => {
           const parts = f.split(" (");
           const name = parts[0].trim();
@@ -916,18 +1041,17 @@ generator client {
           if (typeLower.includes("pk")) {
             gqlType = "ID!";
           } else if (typeLower.includes("fk")) {
-            gqlType = "String!";
+            gqlType = "ID!";
           } else if (typeLower.includes("int")) {
             gqlType = "Int";
-          } else if (typeLower.includes("decimal") || typeLower.includes("numeric")) {
-            gqlType = "Float";
+          } else if (typeLower.includes("decimal") || typeLower.includes("numeric") || typeLower.includes("float")) {
+            gqlType = "Decimal";
           } else if (typeLower.includes("boolean")) {
             gqlType = "Boolean!";
           } else if (typeLower.includes("timestamp") || typeLower.includes("date")) {
-            gqlType = "String";
+            gqlType = "DateTime";
           }
 
-          // Format camelCase
           const camelName = name.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
           schema += `  ${camelName}: ${gqlType}\n`;
         });
@@ -937,7 +1061,7 @@ generator client {
         outgoing.forEach(r => {
           const targetModel = r.to.charAt(0) + r.to.slice(1).toLowerCase();
           if (r.type === "1:N") {
-            schema += `  ${r.to}: [${targetModel}]\n`;
+            schema += `  ${r.to}: [${targetModel}!]\n`;
           } else {
             schema += `  ${r.to.slice(0, -1)}: ${targetModel}\n`;
           }
@@ -946,13 +1070,94 @@ generator client {
         schema += `}\n\n`;
       });
 
-      // Add Queries and Mutations boilerplate
+      // 2. Generate Input Types for Mutations
+      erdTables.forEach(t => {
+        const modelName = t.name.charAt(0) + t.name.slice(1).toLowerCase();
+        
+        // Create Input
+        schema += `input Create${modelName}Input {\n`;
+        t.fields.forEach(f => {
+          const parts = f.split(" (");
+          const name = parts[0].trim();
+          const rest = parts[1] ? parts[1].replace(")", "") : "";
+          const typeLower = rest.toLowerCase();
+
+          if (typeLower.includes("pk")) return; // auto-generated on server
+
+          let gqlType = "String";
+          let isRequired = typeLower.includes("fk") || name === "name" || name === "device_code" || name === "status" || name === "priority";
+          
+          if (typeLower.includes("fk")) {
+            gqlType = "ID";
+          } else if (typeLower.includes("int")) {
+            gqlType = "Int";
+          } else if (typeLower.includes("decimal") || typeLower.includes("numeric") || typeLower.includes("float")) {
+            gqlType = "Decimal";
+          } else if (typeLower.includes("boolean")) {
+            gqlType = "Boolean";
+          } else if (typeLower.includes("timestamp") || typeLower.includes("date")) {
+            gqlType = "DateTime";
+          }
+
+          const camelName = name.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+          schema += `  ${camelName}: ${gqlType}${isRequired ? "!" : ""}\n`;
+        });
+        schema += `}\n\n`;
+
+        // Update Input
+        schema += `input Update${modelName}Input {\n`;
+        schema += `  id: ID!\n`;
+        t.fields.forEach(f => {
+          const parts = f.split(" (");
+          const name = parts[0].trim();
+          const rest = parts[1] ? parts[1].replace(")", "") : "";
+          const typeLower = rest.toLowerCase();
+
+          if (typeLower.includes("pk")) return;
+
+          let gqlType = "String";
+          if (typeLower.includes("fk")) {
+            gqlType = "ID";
+          } else if (typeLower.includes("int")) {
+            gqlType = "Int";
+          } else if (typeLower.includes("decimal") || typeLower.includes("numeric") || typeLower.includes("float")) {
+            gqlType = "Decimal";
+          } else if (typeLower.includes("boolean")) {
+            gqlType = "Boolean";
+          } else if (typeLower.includes("timestamp") || typeLower.includes("date")) {
+            gqlType = "DateTime";
+          }
+
+          const camelName = name.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+          schema += `  ${camelName}: ${gqlType}\n`;
+        });
+        schema += `}\n\n`;
+      });
+
+      // 3. Generate Queries
       schema += `type Query {\n`;
       erdTables.forEach(t => {
         const modelName = t.name.charAt(0) + t.name.slice(1).toLowerCase();
         schema += `  get${modelName}(id: ID!): ${modelName}\n`;
-        schema += `  list${modelName}s: [${modelName}]\n`;
+        schema += `  list${modelName}s: [${modelName}!]\n`;
       });
+      schema += `}\n\n`;
+
+      // 4. Generate Mutations
+      schema += `type Mutation {\n`;
+      erdTables.forEach(t => {
+        const modelName = t.name.charAt(0) + t.name.slice(1).toLowerCase();
+        schema += `  create${modelName}(input: Create${modelName}Input!): ${modelName}!\n`;
+        schema += `  update${modelName}(input: Update${modelName}Input!): ${modelName}!\n`;
+        schema += `  delete${modelName}(id: ID!): Boolean!\n`;
+      });
+      schema += `}\n\n`;
+
+      // 5. Generate Real-time Subscriptions
+      schema += `type Subscription {\n`;
+      schema += `  onDeviceStatusChanged(buildingId: ID!): Device!\n`;
+      schema += `  onDeficiencyLogged(buildingId: ID!): DeficiencyHistory!\n`;
+      schema += `  onTelemetrySweepPing(buildingId: ID!): String!\n`;
       schema += `}\n`;
 
       return schema;
@@ -1134,7 +1339,14 @@ generator client {
                         className="h-7 px-3 bg-cyan-950 border border-cyan-500 text-cyan-400 rounded-none hover:bg-cyan-500/20 text-[9px] font-bold uppercase"
                       >
                         <Download className="w-3 h-3 mr-1.5" />
-                        DOWNLOAD SVG DIAGRAM
+                        DOWNLOAD SVG
+                      </Button>
+                      <Button
+                        onClick={handleDownloadErdPNG}
+                        className="h-7 px-3 bg-cyan-950 border border-cyan-500 text-cyan-400 rounded-none hover:bg-cyan-500/20 text-[9px] font-bold uppercase"
+                      >
+                        <Download className="w-3 h-3 mr-1.5" />
+                        DOWNLOAD PNG
                       </Button>
                     </div>
                   </div>
