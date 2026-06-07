@@ -4,9 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle, ShieldAlert, FileText, Camera, DollarSign } from "lucide-react";
+import { AlertTriangle, ShieldAlert, Camera } from "lucide-react";
 
 interface DeficiencyModalProps {
   isOpen: boolean;
@@ -18,8 +17,6 @@ interface DeficiencyModalProps {
     nfpaCode: string;
     recommendedRepair: string;
     photoUrl?: string;
-    autoGenerateQuote: boolean;
-    autoGenerateReport: boolean;
   }) => void;
 }
 
@@ -28,8 +25,6 @@ export default function DeficiencyModal({ isOpen, onClose, isFailure, onSubmit }
   const [description, setDescription] = useState("");
   const [nfpaCode, setNfpaCode] = useState("");
   const [recommendedRepair, setRecommendedRepair] = useState("");
-  const [autoGenerateQuote, setAutoGenerateQuote] = useState(true);
-  const [autoGenerateReport, setAutoGenerateReport] = useState(true);
   const [mockPhoto, setMockPhoto] = useState<string | undefined>(undefined);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -41,9 +36,7 @@ export default function DeficiencyModal({ isOpen, onClose, isFailure, onSubmit }
       description,
       nfpaCode,
       recommendedRepair,
-      photoUrl: mockPhoto,
-      autoGenerateQuote,
-      autoGenerateReport
+      photoUrl: mockPhoto
     });
 
     // Reset state
@@ -151,35 +144,6 @@ export default function DeficiencyModal({ isOpen, onClose, isFailure, onSubmit }
                 <span>SIMULATE_PHOTO_UPLOAD</span>
               </Button>
             )}
-          </div>
-
-          {/* Automation Checkboxes */}
-          <div className="space-y-2 border-t border-cyan-500/10 pt-3">
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="autoQuote" 
-                checked={autoGenerateQuote} 
-                onCheckedChange={(checked: any) => setAutoGenerateQuote(!!checked)}
-                className="border-cyan-500/30 text-cyan-400"
-              />
-              <label htmlFor="autoQuote" className="text-[10px] text-slate-400 font-bold uppercase cursor-pointer flex items-center gap-1.5">
-                <DollarSign className="w-3.5 h-3.5 text-cyan-500" />
-                <span>Auto-Generate Repair Quote Item</span>
-              </label>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="autoReport" 
-                checked={autoGenerateReport} 
-                onCheckedChange={(checked: any) => setAutoGenerateReport(!!checked)}
-                className="border-cyan-500/30 text-cyan-400"
-              />
-              <label htmlFor="autoReport" className="text-[10px] text-slate-400 font-bold uppercase cursor-pointer flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-cyan-500" />
-                <span>Auto-Draft Compliance Report</span>
-              </label>
-            </div>
           </div>
 
           {/* Footer Actions */}

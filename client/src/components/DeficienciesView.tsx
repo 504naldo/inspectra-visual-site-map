@@ -3,17 +3,17 @@ import { Device, DeficiencyHistory } from "@/lib/mock-data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, ShieldAlert, CheckCircle, ExternalLink, ArrowUpRight, HelpCircle } from "lucide-react";
-import { toast } from "sonner";
+import { AlertTriangle, CheckCircle, ArrowUpRight, Check } from "lucide-react";
 
 interface DeficienciesViewProps {
   devices: Device[];
   onSelectDevice?: (deviceId: string) => void;
+  onResolveDeficiency?: (deviceId: string, deficiencyId: string) => void;
   activeRole: string;
 }
 
-export default function DeficienciesView({ devices, onSelectDevice, activeRole }: DeficienciesViewProps) {
-  
+export default function DeficienciesView({ devices, onSelectDevice, onResolveDeficiency, activeRole }: DeficienciesViewProps) {
+
   // Extract all deficiencies from all devices
   const loggedDeficiencies = devices.flatMap((dev) => {
     return (dev.deficiencyHistory || []).map((def) => ({
@@ -37,12 +37,6 @@ export default function DeficienciesView({ devices, onSelectDevice, activeRole }
       case "critical":
         return <Badge className="bg-rose-950/50 text-rose-400 border-rose-500/30 rounded-none text-[9px] font-bold animate-pulse">CRITICAL</Badge>;
     }
-  };
-
-  const handleResolveDeficiency = (deviceId: string, description: string) => {
-    toast.info("SERVICE ORDER DISPATCHED", {
-      description: `DISPATCHED REPAIR FOR: ${description.toUpperCase()}`
-    });
   };
 
   return (
@@ -110,13 +104,13 @@ export default function DeficienciesView({ devices, onSelectDevice, activeRole }
                         </Button>
                       )}
                       
-                      {activeRole === "fire_company" && !def.resolved && (
-                        <Button 
-                          variant="outline" 
-                          onClick={() => handleResolveDeficiency(def.deviceId, def.description)}
-                          className="h-7 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 rounded-none text-[9px] font-bold px-2"
+                      {activeRole === "fire_company" && !def.resolved && onResolveDeficiency && (
+                        <Button
+                          variant="outline"
+                          onClick={() => onResolveDeficiency(def.deviceId, def.id)}
+                          className="h-7 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 rounded-none text-[9px] font-bold px-2 flex items-center gap-1"
                         >
-                          DISPATCH_REPAIR
+                          <Check className="w-3 h-3" /> MARK_RESOLVED
                         </Button>
                       )}
                     </div>

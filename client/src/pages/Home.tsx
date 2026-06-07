@@ -141,8 +141,6 @@ export default function Home() {
     nfpaCode: string;
     recommendedRepair: string;
     photoUrl?: string;
-    autoGenerateQuote: boolean;
-    autoGenerateReport: boolean;
   }) => {
     if (!selectedDeviceId) return;
 
@@ -181,50 +179,6 @@ export default function Home() {
 
     addLog(`DEFICIENCY_LOGGED // DEVICE: ${targetDevice.label} // PRIORITY: ${data.priority.toUpperCase()} // NFPA: ${data.nfpaCode}`);
 
-    // Optionally auto-generate Quote Item
-    if (data.autoGenerateQuote) {
-      const labourCost = data.priority === "critical" || data.priority === "high" ? 180 : 90;
-      const materialCost = targetDevice.type === "Smoke Detector" ? 120 : 
-                           targetDevice.type === "Sprinkler Riser" ? 450 : 75;
-
-      const newQuoteItem = {
-        id: `QI-${Date.now()}`,
-        deviceId: targetDevice.id,
-        deviceLabel: targetDevice.label,
-        description: data.recommendedRepair,
-        labourCost,
-        materialCost,
-        qty: 1
-      };
-
-      setQuotes(prev => prev.map(q => {
-        if (q.id === "Q-2026-1047") { // Target active demo quote
-          return {
-            ...q,
-            status: "Awaiting Approval",
-            items: [...q.items, newQuoteItem]
-          };
-        }
-        return q;
-      }));
-
-      addLog(`QUOTE_GEN // APPENDED REPAIR ESTIMATE TO Q-2026-1047.`);
-    }
-
-    // Optionally auto-generate Compliance Report
-    if (data.autoGenerateReport) {
-      setReports(prev => prev.map(r => {
-        if (r.id === "RPT-2026-0614-HVA") {
-          return {
-            ...r,
-            status: "Ready for Review"
-          };
-        }
-        return r;
-      }));
-      addLog(`REPORT_GEN // RE-DRAFTED COMPLIANCE REPORT RPT-2026-0614-HVA.`);
-    }
-
     toast.success("DEFICIENCY REGISTERED", {
       description: `Successfully logged ${status.toUpperCase()} on device ${targetDevice.label}.`
     });
@@ -259,6 +213,33 @@ export default function Home() {
       }
       return q;
     }));
+  };
+
+  // Mark a logged deficiency as resolved; restore the device to "passed" once it has no other open deficiencies
+  const handleResolveDeficiency = (deviceId: string, deficiencyId: string) => {
+    setDevices(prev => prev.map(d => {
+      if (d.id !== deviceId) return d;
+
+      const updatedHistory = (d.deficiencyHistory || []).map(def =>
+        def.id === deficiencyId
+          ? { ...def, resolved: true, resolvedAt: new Date().toISOString().split('T')[0] }
+          : def
+      );
+      const stillOpen = updatedHistory.some(def => !def.resolved);
+
+      addLog(`DEFICIENCY_RESOLVED // DEVICE: ${d.label} // ID: ${deficiencyId}`);
+
+      return {
+        ...d,
+        deficiencyHistory: updatedHistory,
+        status: stillOpen ? d.status : "passed",
+        deficiencyNote: stillOpen ? d.deficiencyNote : undefined
+      };
+    }));
+
+    toast.success("DEFICIENCY RESOLVED", {
+      description: "Deficiency marked resolved and the inspection record has been updated."
+    });
   };
 
   // Toggle Setup Step
@@ -544,12 +525,13 @@ export default function Home() {
         );
       case "deficiencies":
         return (
-          <DeficienciesView 
-            devices={devices} 
+          <DeficienciesView
+            devices={devices}
             onSelectDevice={(id) => {
               setSelectedDeviceId(id);
               setActivePage("map");
             }}
+            onResolveDeficiency={handleResolveDeficiency}
             activeRole={activeRole}
           />
         );
