@@ -286,32 +286,32 @@ export default function MapCanvas({
     <div className="flex-1 flex flex-col relative min-h-0 select-none">
       {/* HUD Toolbar Overlay */}
       <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-slate-950/80 border border-cyan-500/30 p-1.5 backdrop-blur-md">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => handleZoom("in")} 
-          className="h-8 w-8 rounded-none text-cyan-400 hover:bg-cyan-500/10"
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => handleZoom("in")}
+          className="h-11 w-11 rounded-none text-cyan-400 hover:bg-cyan-500/10"
           title="Zoom In"
         >
-          <ZoomIn className="w-4 h-4" />
+          <ZoomIn className="w-5 h-5" />
         </Button>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => handleZoom("out")} 
-          className="h-8 w-8 rounded-none text-cyan-400 hover:bg-cyan-500/10"
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => handleZoom("out")}
+          className="h-11 w-11 rounded-none text-cyan-400 hover:bg-cyan-500/10"
           title="Zoom Out"
         >
-          <ZoomOut className="w-4 h-4" />
+          <ZoomOut className="w-5 h-5" />
         </Button>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={handleReset} 
-          className="h-8 w-8 rounded-none text-cyan-400 hover:bg-cyan-500/10"
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleReset}
+          className="h-11 w-11 rounded-none text-cyan-400 hover:bg-cyan-500/10"
           title="Recenter Map"
         >
-          <Maximize2 className="w-4 h-4" />
+          <Maximize2 className="w-5 h-5" />
         </Button>
         <div className="h-4 w-px bg-cyan-500/20 mx-1" />
         <span className="text-[9px] font-mono text-slate-500 px-2 uppercase font-bold">
@@ -387,7 +387,7 @@ export default function MapCanvas({
                   top: `${dev.y}%`,
                   transform: "translate(-50%, -50%)"
                 }}
-                className={`absolute p-1.5 border transition-all duration-200 focus:outline-none group z-20 ${statusClass} ${
+                className={`absolute p-2.5 border transition-all duration-200 focus:outline-none group z-20 ${statusClass} ${
                   isSelected 
                     ? "scale-125 ring-2 ring-cyan-400 ring-offset-2 ring-offset-slate-950 z-30" 
                     : "hover:scale-110"

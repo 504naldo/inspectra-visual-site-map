@@ -439,7 +439,7 @@ export default function Home() {
                     placeholder="SEARCH_HARDWARE_TAG..." 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 bg-slate-900 border-cyan-500/20 text-cyan-400 placeholder:text-slate-600 rounded-none h-9 text-xs focus-visible:ring-cyan-500/50 uppercase"
+                    className="pl-9 bg-slate-900 border-cyan-500/20 text-cyan-400 placeholder:text-slate-600 rounded-none h-10 text-xs focus-visible:ring-cyan-500/50 uppercase"
                   />
                 </div>
                 
@@ -447,7 +447,7 @@ export default function Home() {
                   <select 
                     value={categoryFilter} 
                     onChange={(e) => setCategoryFilter(e.target.value)}
-                    className="bg-slate-900 border border-cyan-500/20 p-1.5 text-[10px] text-cyan-400 font-mono rounded-none uppercase focus:ring-cyan-500/30"
+                    className="bg-slate-900 border border-cyan-500/20 h-10 px-2 text-[11px] text-cyan-400 font-mono rounded-none uppercase focus:ring-cyan-500/30"
                   >
                     <option value="all">ALL_CATEGORIES</option>
                     <option value="Detection & Control">DETECTION</option>
@@ -460,7 +460,7 @@ export default function Home() {
                   <select 
                     value={statusFilter} 
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="bg-slate-900 border border-cyan-500/20 p-1.5 text-[10px] text-cyan-400 font-mono rounded-none uppercase focus:ring-cyan-500/30"
+                    className="bg-slate-900 border border-cyan-500/20 h-10 px-2 text-[11px] text-cyan-400 font-mono rounded-none uppercase focus:ring-cyan-500/30"
                   >
                     <option value="all">ALL_STATUSES</option>
                     <option value="passed">PASSED</option>
@@ -642,7 +642,7 @@ export default function Home() {
               <select
                 value={activeFloor}
                 onChange={(e) => setActiveFloor(e.target.value)}
-                className="bg-slate-900 border border-cyan-500/20 px-2 py-1 text-xs text-cyan-400 font-mono rounded-none focus:outline-none focus:border-cyan-500/60"
+                className="bg-slate-900 border border-cyan-500/20 h-10 px-2.5 text-xs text-cyan-400 font-mono rounded-none focus:outline-none focus:border-cyan-500/60"
               >
                 {FLOORS.map(f => <option key={f} value={f}>{f}</option>)}
               </select>
@@ -690,7 +690,7 @@ export default function Home() {
                 <button
                   key={page}
                   onClick={() => setActivePage(page)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 text-sm transition-colors ${
                     activePage === page
                       ? "bg-cyan-500/10 text-cyan-300 border-r-2 border-cyan-500"
                       : "text-slate-500 hover:text-cyan-400 hover:bg-cyan-500/5 border-r-2 border-transparent"

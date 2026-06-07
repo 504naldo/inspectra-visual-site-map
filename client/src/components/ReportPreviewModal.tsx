@@ -191,14 +191,14 @@ export default function ReportPreviewModal({ report, devices, onClose }: ReportP
               type="button"
               variant="ghost"
               onClick={onClose}
-              className="rounded-none border border-cyan-500/10 text-slate-500 hover:text-cyan-400"
+              className="h-11 rounded-none border border-cyan-500/10 text-slate-500 hover:text-cyan-400"
             >
               CLOSE
             </Button>
             <Button
               type="button"
               onClick={handleExportPDF}
-              className="rounded-none bg-cyan-950 border border-cyan-500 text-cyan-400 hover:bg-cyan-900 font-bold flex items-center gap-1.5"
+              className="h-11 rounded-none bg-cyan-950 border border-cyan-500 text-cyan-400 hover:bg-cyan-900 font-bold flex items-center gap-1.5"
             >
               <Download className="w-3.5 h-3.5" /> EXPORT_PDF
             </Button>

@@ -258,9 +258,9 @@ export default function DemoWalkthrough({
           <Sparkles className="w-4 h-4 text-cyan-300 animate-pulse" />
           <span className="font-bold uppercase tracking-widest text-cyan-300">DEMO_GUIDE // STEP_{currentStep}_OF_{steps.length}</span>
         </div>
-        <button 
+        <button
           onClick={handleClose}
-          className="text-slate-500 hover:text-cyan-400 font-bold"
+          className="text-slate-500 hover:text-cyan-400 font-bold w-9 h-9 flex items-center justify-center -mr-1.5"
         >
           [X]
         </button>
@@ -278,7 +278,7 @@ export default function DemoWalkthrough({
               </div>
               <Button 
                 onClick={handleClose}
-                className="rounded-none bg-emerald-950 border border-emerald-500 text-emerald-400 hover:bg-emerald-900 font-bold text-[10px] h-8 px-4"
+                className="rounded-none bg-emerald-950 border border-emerald-500 text-emerald-400 hover:bg-emerald-900 font-bold text-[11px] h-10 px-4"
               >
                 CLOSE_WIDGET
               </Button>
@@ -300,7 +300,7 @@ export default function DemoWalkthrough({
                 <Button 
                   onClick={handlePrev}
                   disabled={currentStep === 1}
-                  className="rounded-none border border-cyan-500/10 text-slate-500 hover:text-cyan-400 h-8 px-3 text-[10px]"
+                  className="rounded-none border border-cyan-500/10 text-slate-500 hover:text-cyan-400 h-10 px-3 text-[11px]"
                 >
                   <ChevronLeft className="w-4 h-4 mr-1" />
                   <span>PREV</span>
@@ -308,7 +308,7 @@ export default function DemoWalkthrough({
 
                 <Button 
                   onClick={handleNext}
-                  className="rounded-none bg-cyan-950 border border-cyan-500 text-cyan-400 hover:bg-cyan-900 font-bold h-8 px-4 text-[10px] shadow-[0_0_10px_rgba(6,182,212,0.2)]"
+                  className="rounded-none bg-cyan-950 border border-cyan-500 text-cyan-400 hover:bg-cyan-900 font-bold h-10 px-4 text-[11px] shadow-[0_0_10px_rgba(6,182,212,0.2)]"
                 >
                   <span>{currentStep === steps.length ? "COMPLETE" : "NEXT"}</span>
                   <ChevronRight className="w-4 h-4 ml-1" />

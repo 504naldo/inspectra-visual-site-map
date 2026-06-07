@@ -65,12 +65,12 @@ export default function DeficiencyModal({ isOpen, onClose, isFailure, onSubmit }
           
           {/* Priority Level */}
           <div className="space-y-1.5">
-            <Label className="text-slate-500 uppercase font-bold text-[9px]">Priority Level</Label>
+            <Label className="text-slate-500 uppercase font-bold text-[10px]">Priority Level</Label>
             <Select 
               value={priority} 
               onValueChange={(val: any) => setPriority(val)}
             >
-              <SelectTrigger className="bg-slate-900 border-cyan-500/20 text-cyan-400 rounded-none text-xs h-9">
+              <SelectTrigger className="bg-slate-900 border-cyan-500/20 text-cyan-400 rounded-none text-xs h-10">
                 <SelectValue placeholder="Select priority" />
               </SelectTrigger>
               <SelectContent className="bg-slate-950 border-cyan-500 text-cyan-400 rounded-none text-xs font-mono">
@@ -84,19 +84,19 @@ export default function DeficiencyModal({ isOpen, onClose, isFailure, onSubmit }
 
           {/* NFPA Code Reference */}
           <div className="space-y-1.5">
-            <Label className="text-slate-500 uppercase font-bold text-[9px]">NFPA Standard / Local Fire Code</Label>
+            <Label className="text-slate-500 uppercase font-bold text-[10px]">NFPA Standard / Local Fire Code</Label>
             <Input 
               value={nfpaCode}
               onChange={(e) => setNfpaCode(e.target.value)}
               placeholder="e.g., NFPA 72 (14.4.5) / Vancouver Fire Bylaw 4.2"
-              className="bg-slate-900 border-cyan-500/20 text-cyan-400 rounded-none text-xs h-9"
+              className="bg-slate-900 border-cyan-500/20 text-cyan-400 rounded-none text-xs h-10"
               required
             />
           </div>
 
           {/* Deficiency Description */}
           <div className="space-y-1.5">
-            <Label className="text-slate-500 uppercase font-bold text-[9px]">Plain-Language Deficiency Description</Label>
+            <Label className="text-slate-500 uppercase font-bold text-[10px]">Plain-Language Deficiency Description</Label>
             <Textarea 
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -109,19 +109,19 @@ export default function DeficiencyModal({ isOpen, onClose, isFailure, onSubmit }
 
           {/* Recommended Repair */}
           <div className="space-y-1.5">
-            <Label className="text-slate-500 uppercase font-bold text-[9px]">Recommended Compliance Repair</Label>
+            <Label className="text-slate-500 uppercase font-bold text-[10px]">Recommended Compliance Repair</Label>
             <Input 
               value={recommendedRepair}
               onChange={(e) => setRecommendedRepair(e.target.value)}
               placeholder="e.g., Replace defective smoke detector head assembly"
-              className="bg-slate-900 border-cyan-500/20 text-cyan-400 rounded-none text-xs uppercase h-9"
+              className="bg-slate-900 border-cyan-500/20 text-cyan-400 rounded-none text-xs uppercase h-10"
               required
             />
           </div>
 
           {/* Photo Attachment */}
           <div className="space-y-1.5">
-            <Label className="text-slate-500 uppercase font-bold text-[9px]">Field Photo Attachment</Label>
+            <Label className="text-slate-500 uppercase font-bold text-[10px]">Field Photo Attachment</Label>
             {mockPhoto ? (
               <div className="relative border border-cyan-500/20 p-1 bg-slate-900">
                 <img src={mockPhoto} alt="Deficiency" className="w-full h-32 object-cover" />
@@ -129,7 +129,7 @@ export default function DeficiencyModal({ isOpen, onClose, isFailure, onSubmit }
                   type="button" 
                   variant="ghost" 
                   onClick={() => setMockPhoto(undefined)}
-                  className="absolute top-2 right-2 bg-slate-950/80 hover:bg-rose-950 text-cyan-400 hover:text-rose-400 rounded-none h-6 px-2 text-[8px]"
+                  className="absolute top-2 right-2 bg-slate-950/80 hover:bg-rose-950 text-cyan-400 hover:text-rose-400 rounded-none h-9 px-3 text-[10px]"
                 >
                   REMOVE
                 </Button>
@@ -152,13 +152,13 @@ export default function DeficiencyModal({ isOpen, onClose, isFailure, onSubmit }
               type="button" 
               variant="ghost" 
               onClick={onClose}
-              className="rounded-none border border-cyan-500/10 text-slate-500 hover:text-cyan-400"
+              className="h-11 rounded-none border border-cyan-500/10 text-slate-500 hover:text-cyan-400"
             >
               CANCEL
             </Button>
             <Button 
               type="submit"
-              className="rounded-none bg-cyan-950 border border-cyan-500 text-cyan-400 hover:bg-cyan-900 font-bold"
+              className="h-11 rounded-none bg-cyan-950 border border-cyan-500 text-cyan-400 hover:bg-cyan-900 font-bold"
             >
               SUBMIT_DEFICIENCY
             </Button>

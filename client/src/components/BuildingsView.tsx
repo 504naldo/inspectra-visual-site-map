@@ -116,7 +116,7 @@ export default function BuildingsView({ buildings, onSelectBuilding, activeRole 
               </div>
               <Button 
                 onClick={() => onSelectBuilding(bld.id)}
-                className="bg-cyan-950 hover:bg-cyan-900 border border-cyan-500 text-cyan-400 rounded-none text-[10px] font-bold gap-1 h-8 px-3"
+                className="bg-cyan-950 hover:bg-cyan-900 border border-cyan-500 text-cyan-400 rounded-none text-[11px] font-bold gap-1.5 h-11 px-4"
               >
                 <span>LAUNCH_VISUAL_MAP</span>
                 <ArrowRight className="w-3.5 h-3.5" />

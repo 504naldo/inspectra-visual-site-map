@@ -93,24 +93,24 @@ export default function DeficienciesView({ devices, onSelectDevice, onResolveDef
                   <TableCell className="text-right py-2">
                     <div className="flex items-center justify-end gap-1.5">
                       {onSelectDevice && (
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => onSelectDevice(def.deviceId)}
-                          className="h-7 w-7 rounded-none text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10" 
+                          className="h-10 w-10 rounded-none text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10"
                           title="Locate Node on Blueprint"
                         >
-                          <ArrowUpRight className="w-3.5 h-3.5" />
+                          <ArrowUpRight className="w-4 h-4" />
                         </Button>
                       )}
-                      
+
                       {activeRole === "fire_company" && !def.resolved && onResolveDeficiency && (
                         <Button
                           variant="outline"
                           onClick={() => onResolveDeficiency(def.deviceId, def.id)}
-                          className="h-7 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 rounded-none text-[9px] font-bold px-2 flex items-center gap-1"
+                          className="h-10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 rounded-none text-[10px] font-bold px-3 flex items-center gap-1.5"
                         >
-                          <Check className="w-3 h-3" /> MARK_RESOLVED
+                          <Check className="w-3.5 h-3.5" /> MARK_RESOLVED
                         </Button>
                       )}
                     </div>

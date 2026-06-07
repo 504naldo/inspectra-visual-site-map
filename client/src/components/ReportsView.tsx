@@ -101,35 +101,35 @@ export default function ReportsView({ reports, onAddReport, activeRole, onViewRe
                 <TableCell>{getStatusBadge(report.status)}</TableCell>
                 <TableCell className="text-right py-2">
                   <div className="flex items-center justify-end gap-1.5">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={() => onViewReport && onViewReport(report)}
-                      className="h-7 w-7 rounded-none text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10" 
+                      className="h-10 w-10 rounded-none text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10"
                       title="View / Preview Report"
                     >
-                      <Eye className="w-3.5 h-3.5" />
+                      <Eye className="w-4 h-4" />
                     </Button>
 
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={() => handleExportPDF(report.reportNumber)}
-                      className="h-7 w-7 rounded-none text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10" 
+                      className="h-10 w-10 rounded-none text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10"
                       title="Export PDF"
                     >
-                      <Download className="w-3.5 h-3.5" />
+                      <Download className="w-4 h-4" />
                     </Button>
-                    
+
                     {activeRole === "fire_company" && report.status === "Ready for Review" && (
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => handleSendToClient(report.id)}
-                        className="h-7 w-7 rounded-none text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10" 
+                        className="h-10 w-10 rounded-none text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
                         title="Transmit to Client"
                       >
-                        <Send className="w-3.5 h-3.5" />
+                        <Send className="w-4 h-4" />
                       </Button>
                     )}
                   </div>
