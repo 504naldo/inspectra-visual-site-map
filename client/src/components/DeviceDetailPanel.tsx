@@ -74,6 +74,8 @@ export default function DeviceDetailPanel({
         return <Badge className="bg-cyan-950/50 text-cyan-400 border-cyan-500/30 rounded-none text-[9px] font-bold animate-pulse">TESTING</Badge>;
       case "no_access":
         return <Badge className="bg-slate-900 text-slate-400 border-slate-700 rounded-none text-[9px] font-bold">NO_ACCESS</Badge>;
+      case "attention_required":
+        return <Badge className="bg-fuchsia-950/50 text-fuchsia-400 border-fuchsia-500/30 rounded-none text-[9px] font-bold animate-pulse">ATTENTION_REQUIRED</Badge>;
       default:
         return <Badge className="bg-slate-950 text-slate-500 border-slate-800 rounded-none text-[9px] font-bold">NOT_TESTED</Badge>;
     }
@@ -239,7 +241,14 @@ export default function DeviceDetailPanel({
             </Button>
           </div>
 
-          <Button 
+          <Button
+            onClick={() => onUpdateStatus(device.id, "attention_required")}
+            className="w-full bg-fuchsia-950/40 hover:bg-fuchsia-900/60 border border-fuchsia-500/40 text-fuchsia-400 rounded-none text-[10px] font-bold h-8 flex items-center gap-1"
+          >
+            <Eye className="w-3.5 h-3.5" /> ATTENTION_REQUIRED
+          </Button>
+
+          <Button
             onClick={() => onUpdateStatus(device.id, "not_tested")}
             variant="ghost"
             className="w-full border border-cyan-500/10 text-slate-500 hover:text-cyan-400 hover:bg-cyan-500/5 rounded-none text-[10px] font-bold h-8"

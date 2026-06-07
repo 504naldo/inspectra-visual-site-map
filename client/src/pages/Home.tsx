@@ -63,6 +63,9 @@ export default function Home() {
   const simIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const terminalLogRef = useRef<HTMLDivElement>(null);
 
+  // Refs for auto-scrolling the device list sidebar to the selected device
+  const deviceListItemRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
   // Deficiency Modal State
   const [isDeficiencyModalOpen, setIsDeficiencyModalOpen] = useState(false);
   const [deficiencyModalIsFailure, setDeficiencyModalIsFailure] = useState(true);
@@ -90,6 +93,13 @@ export default function Home() {
       terminalLogRef.current.scrollTop = terminalLogRef.current.scrollHeight;
     }
   }, [terminalLogs]);
+
+  // Auto-scroll the device list sidebar to the selected device (e.g. when selected via the map canvas)
+  useEffect(() => {
+    if (selectedDeviceId && activePage === "map") {
+      deviceListItemRefs.current[selectedDeviceId]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [selectedDeviceId, activePage]);
 
   // Update a single device status manually
   const handleUpdateDeviceStatus = (deviceId: string, status: DeviceStatus, note?: string) => {
@@ -442,10 +452,24 @@ export default function Home() {
                     <option value="passed">PASSED</option>
                     <option value="failed">FAILED</option>
                     <option value="deficiency">DEFICIENCY</option>
+                    <option value="attention_required">ATTENTION_REQUIRED</option>
+                    <option value="no_access">NO_ACCESS</option>
                     <option value="not_tested">PENDING</option>
                   </select>
                 </div>
               </div>
+
+              {/* Floor Progress Counter */}
+              {(() => {
+                const floorDevices = devices.filter(d => d.floor === activeFloor);
+                const testedCount = floorDevices.filter(d => d.status !== "not_tested").length;
+                return (
+                  <div className="flex items-center justify-between border border-cyan-500/10 bg-slate-900/40 px-3 py-2">
+                    <span className="font-bold uppercase tracking-wider text-cyan-300 truncate">{activeFloor}</span>
+                    <span className="text-slate-500 shrink-0 ml-2">{testedCount} / {floorDevices.length} TESTED</span>
+                  </div>
+                );
+              })()}
 
               {/* Devices List */}
               <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
@@ -470,6 +494,7 @@ export default function Home() {
                   .map((dev) => (
                     <button
                       key={dev.id}
+                      ref={(el) => { deviceListItemRefs.current[dev.id] = el; }}
                       onClick={() => setSelectedDeviceId(dev.id)}
                       className={`w-full p-2.5 border text-left flex items-center justify-between gap-3 transition-colors ${
                         selectedDeviceId === dev.id 
@@ -487,6 +512,7 @@ export default function Home() {
                           dev.status === "passed" ? "bg-emerald-500" :
                           dev.status === "failed" ? "bg-rose-500 animate-pulse" :
                           dev.status === "deficiency" ? "bg-amber-500" :
+                          dev.status === "attention_required" ? "bg-fuchsia-500 animate-pulse" :
                           dev.status === "testing" ? "bg-cyan-500 animate-pulse" :
                           "bg-slate-700"
                         }`} />
@@ -503,7 +529,7 @@ export default function Home() {
               onSelectDevice={(id) => setSelectedDeviceId(id)}
               activeFloor={activeFloor}
               activeRole={activeRole}
-              theme={theme}
+              theme="dark"
             />
 
             {/* Device Detail Panel */}

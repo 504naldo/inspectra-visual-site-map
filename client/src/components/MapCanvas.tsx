@@ -115,6 +115,8 @@ export default function MapCanvas({
         return "bg-cyan-500 text-slate-950 shadow-[0_0_15px_#06b6d4] border-cyan-300 animate-pulse";
       case "no_access":
         return "bg-slate-500 text-slate-950 shadow-[0_0_8px_#6b7280] border-slate-300";
+      case "attention_required":
+        return "bg-fuchsia-500 text-slate-950 shadow-[0_0_12px_#d946ef] border-fuchsia-300 animate-pulse";
       default:
         return theme === "light" 
           ? "bg-slate-300 text-slate-700 border-slate-400" 
@@ -449,6 +451,11 @@ export default function MapCanvas({
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 bg-slate-500 border border-slate-300" />
             <span className="text-slate-400 uppercase">NO ACCESS</span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 bg-fuchsia-500 border border-fuchsia-300 shadow-[0_0_5px_#d946ef]" />
+            <span className="text-slate-400 uppercase">ATTENTION REQUIRED</span>
           </div>
 
           {activeRole === "government" && (
