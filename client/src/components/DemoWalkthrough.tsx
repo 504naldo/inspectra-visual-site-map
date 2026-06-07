@@ -146,7 +146,7 @@ export default function DemoWalkthrough({
     {
       title: "20. Inspect Fire Alarm Panel",
       desc: "Government inspectors can click on the main Fire Alarm Panel to view real-time system status and emergency contacts.",
-      action: "Click on the 'FACP-01' node in the lobby area of the Main Floor (switch back to Main Floor first if needed)."
+      action: "Click on the 'FACP-001' node in the Main Electrical Room area of the Main Floor (switch back to Main Floor first if needed)."
     },
     {
       title: "21. Return to Fire Company",
@@ -192,7 +192,7 @@ export default function DemoWalkthrough({
         onSetPage("map");
       } else if (next === 20) {
         onSetFloor("Main Floor");
-        onSelectDevice("FACP-01");
+        onSelectDevice("FACP-001");
       } else if (next === 21) {
         onSetRole("fire_company");
         onSetPage("map");

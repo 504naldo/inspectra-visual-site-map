@@ -162,14 +162,14 @@ export const MOCK_BUILDINGS: Building[] = [
     status: "In Progress",
     lastInspectionDate: "June 4, 2026",
     nextInspectionDue: "June 4, 2027",
-    totalDevices: 85,
-    openDeficiencies: 5,
+    totalDevices: 10,
+    openDeficiencies: 4,
     criticalDeficiencies: 1,
     setupProgress: 90,
     fireAlarmType: "Mircom FX-2000 Addressable",
     lockboxLocation: "Front Entrance Vestibule, Right Side Wall",
-    fdcLocation: "North-West Corner, Street Level near Hydrant",
-    panelLocation: "Main Lobby behind Reception Counter",
+    fdcLocation: "Front Exterior Wall, Street Level near Hydrant",
+    panelLocation: "Main Electrical Room, Main Floor",
     constructionType: "Type I-A Fire-Resistive Concrete",
     occupancyTypeDetail: "Group R-2 Residential Apartment Block",
     emergencyContacts: [
@@ -255,284 +255,173 @@ export const MOCK_BUILDINGS: Building[] = [
   }
 ];
 
-// Helper to generate the exact 85 devices for Harbour View Apartments
-const generateHarbourViewDevices = (): Device[] => {
-  const list: Device[] = [];
-
-  // Critical Emergency Response Assets (always purple/blue or highlighted)
-  list.push({
-    id: "FACP-01",
-    label: "FACP-01",
+// Helper to generate the 10 demo devices for Harbour View Apartments (matches the MVP product spec)
+const generateHarbourViewDevices = (): Device[] => [
+  {
+    id: "FACP-001",
+    label: "FACP-001",
     type: "Fire Alarm Panel",
     category: "Detection & Control",
     floor: "Main Floor",
-    area: "Lobby",
-    location: "Behind reception counter",
-    x: 91,
-    y: 45,
+    area: "Main Electrical Room",
+    location: "Wall-mounted panel inside the main electrical room",
+    x: 72,
+    y: 38,
     status: "passed",
     lastTestedAt: "2026-06-04T09:15:00Z",
     lastTestedBy: "R. Daniels (Tech #401)",
-    qrCode: "QR-FACP-HVA01",
+    qrCode: "QR-FACP-001",
     serviceHistory: [
-      { date: "2026-06-04", action: "Annual Operational Battery & Signal Test", technician: "R. Daniels" },
+      { date: "2026-06-04", action: "Annual operational battery & signal test", technician: "R. Daniels" },
       { date: "2025-06-05", action: "Replaced backup batteries", technician: "M. Vance" }
     ]
-  });
-
-  list.push({
-    id: "ANN-01",
-    label: "ANN-01",
+  },
+  {
+    id: "ANN-001",
+    label: "ANN-001",
     type: "Annunciator",
     category: "Detection & Control",
     floor: "Main Floor",
-    area: "Main Vestibule",
-    location: "Inside main glass entry doors",
-    x: 43,
-    y: 67,
+    area: "Front Lobby",
+    location: "Wall-mounted beside the main entrance doors",
+    x: 50,
+    y: 75,
     status: "passed",
     lastTestedAt: "2026-06-04T09:20:00Z",
     lastTestedBy: "R. Daniels (Tech #401)",
-    qrCode: "QR-ANN-HVA01"
-  });
-
-  list.push({
-    id: "FDC-001",
-    label: "FDC-001",
-    type: "FDC",
-    category: "Access & Utilities",
-    floor: "Main Floor",
-    area: "Exterior Facade",
-    location: "North-West exterior wall near hydrant",
-    x: 65,
-    y: 67,
-    status: "deficiency", // Pre-loaded deficiency #4
-    lastTestedAt: "2026-06-04T09:40:00Z",
-    lastTestedBy: "R. Daniels (Tech #401)",
-    deficiencyNote: "FDC signage faded and unreadable from street.",
-    qrCode: "QR-FDC-HVA01",
-    customerNotes: "The fire department connection signage has weathered and is no longer clearly visible from the main roadway. Replacement is required to comply with Vancouver Fire Bylaw section 4.1.",
-    technicianNotes: "FDC threads are in good condition and swivel moves freely. Outer sign is heavily oxidized and needs a standard 10x12 reflective aluminum replacement."
-  });
-
-  list.push({
-    id: "RISER-01",
-    label: "RISER-01",
-    type: "Sprinkler Riser",
-    category: "Suppression",
-    floor: "Parkade P1",
-    area: "Sprinkler Room",
-    location: "Main wet pipe riser valve assembly",
-    x: 15,
-    y: 80,
-    status: "passed",
-    lastTestedAt: "2026-06-04T10:10:00Z",
-    lastTestedBy: "R. Daniels (Tech #401)",
-    qrCode: "QR-RSR-HVA01"
-  });
-
-  list.push({
-    id: "LBOX-001",
-    label: "LBOX-001",
-    type: "Lockbox",
-    category: "Access & Utilities",
-    floor: "Main Floor",
-    area: "Main Entrance",
-    location: "Exterior wall right of intercom panel",
-    x: 12,
-    y: 81,
-    status: "passed",
-    lastTestedAt: "2026-06-04T09:05:00Z",
-    lastTestedBy: "R. Daniels (Tech #401)",
-    qrCode: "QR-LBOX-HVA01"
-  });
-
-  // Pre-loaded Deficiencies
-  // 1. SD-M-10 (Smoke Detector - Main Floor) -> Pending/Not Tested to start so user can click it in the demo
-  list.push({
+    qrCode: "QR-ANN-001"
+  },
+  {
     id: "SD-M-10",
     label: "SD-M-10",
     type: "Smoke Detector",
     category: "Detection & Control",
     floor: "Main Floor",
     area: "Main Corridor",
-    location: "Ceiling outside Suite 104",
-    x: 60,
-    y: 32,
-    status: "not_tested", // User will trigger this during walkthrough
+    location: "Ceiling-mounted outside Suite 104",
+    x: 40,
+    y: 50,
+    status: "not_tested",
     qrCode: "QR-SD-M10",
     customerNotes: "Smoke detector in the main corridor did not respond properly during testing. Replacement is recommended to restore detection coverage in this area.",
     technicianNotes: "Detector did not activate during smoke entry test. Confirmed circuit response from adjacent device."
-  });
-
-  // 2. EL-P1-04 (Emergency Light - Parkade P1) -> Pre-failed
-  list.push({
-    id: "EL-P1-04",
-    label: "EL-P1-04",
-    type: "Emergency Light",
-    category: "Egress & Lighting",
-    floor: "Parkade P1",
-    area: "Parking Zone B",
-    location: "Pillar P-08, facing east exit lane",
-    x: 50,
-    y: 30,
-    status: "failed",
-    lastTestedAt: "2026-06-04T11:15:00Z",
-    lastTestedBy: "R. Daniels (Tech #401)",
-    deficiencyNote: "Failed 30-minute load battery test.",
-    qrCode: "QR-EL-P104",
-    customerNotes: "The emergency lighting battery unit failed to hold its required charge during the standard 30-minute load simulation. Battery or full unit replacement is required to maintain egress illumination.",
-    technicianNotes: "Battery terminals are oxidized, and cell voltage dropped to 4.2V within 5 minutes of load drop. Replace with standard 12V 9Ah SLA battery."
-  });
-
-  // 3. PS-W-02 (Pull Station - West Stair) -> Pre-deficiency
-  list.push({
+  },
+  {
     id: "PS-W-02",
     label: "PS-W-02",
     type: "Pull Station",
     category: "Detection & Control",
     floor: "Level 2",
     area: "West Stairwell",
-    location: "Next to stairwell exit door",
-    x: 10,
-    y: 51,
+    location: "Wall-mounted beside the stairwell exit door",
+    x: 11,
+    y: 50,
     status: "deficiency",
     lastTestedAt: "2026-06-04T12:30:00Z",
     lastTestedBy: "R. Daniels (Tech #401)",
     deficiencyNote: "Cracked glass cover.",
     qrCode: "QR-PS-W02",
-    customerNotes: "The pull station protective plastic glass cover is cracked. While the station remains operational, the cover must be replaced to prevent accidental activation or vandalism.",
-    technicianNotes: "Station housing is solid and switch contacts are fully clean. Just needs a standard Mircom replacement shear-glass cover."
-  });
-
-  // 5. SUPV-D-01 (Sprinkler Supervisory Switch - Dry System Valve Room) -> Starts "not_tested" for Walkthrough Step 16
-  list.push({
+    customerNotes: "The pull station's protective plastic cover is cracked. While the station remains operational, the cover must be replaced to prevent accidental activation or vandalism.",
+    technicianNotes: "Station housing is solid and switch contacts are clean. Needs a standard Mircom replacement shear-glass cover."
+  },
+  {
+    id: "EL-P1-04",
+    label: "EL-P1-04",
+    type: "Emergency Light",
+    category: "Egress & Lighting",
+    floor: "Parkade P1",
+    area: "Parkade Elevator Lobby",
+    location: "Ceiling-mounted above the elevator lobby doors",
+    x: 45,
+    y: 48,
+    status: "failed",
+    lastTestedAt: "2026-06-04T11:15:00Z",
+    lastTestedBy: "R. Daniels (Tech #401)",
+    deficiencyNote: "Failed 30-minute load battery test.",
+    qrCode: "QR-EL-P104",
+    customerNotes: "The emergency lighting battery unit failed to hold its required charge during the standard 30-minute load simulation. Battery or unit replacement is required to maintain egress illumination.",
+    technicianNotes: "Battery terminals are oxidized and cell voltage dropped to 4.2V within 5 minutes of load drop. Replace with a standard 12V 9Ah SLA battery."
+  },
+  {
+    id: "FDC-001",
+    label: "FDC-001",
+    type: "FDC",
+    category: "Access & Utilities",
+    floor: "Main Floor",
+    area: "Front Exterior Wall",
+    location: "Exterior wall near the main entrance, street-facing",
+    x: 8,
+    y: 85,
+    status: "deficiency",
+    lastTestedAt: "2026-06-04T09:40:00Z",
+    lastTestedBy: "R. Daniels (Tech #401)",
+    deficiencyNote: "FDC signage faded and unreadable from street.",
+    qrCode: "QR-FDC-001",
+    customerNotes: "The fire department connection signage has weathered and is no longer clearly visible from the main roadway. Replacement is required to comply with Vancouver Fire Bylaw section 4.1.",
+    technicianNotes: "FDC threads are in good condition and the swivel moves freely. Outer sign is heavily oxidized and needs a standard 10x12 reflective aluminum replacement."
+  },
+  {
     id: "SUPV-D-01",
     label: "SUPV-D-01",
-    type: "Sprinkler Riser", // Matches riser type
+    type: "Sprinkler Riser",
     category: "Suppression",
     floor: "Parkade P1",
     area: "Dry System Valve Room",
-    location: "Main OS&Y control valve supervisor switch",
-    x: 60,
-    y: 70,
-    status: "not_tested", // User will trigger this during walkthrough
-    qrCode: "QR-SUPV-D01",
-    customerNotes: "A sprinkler valve supervisory signal is not reporting properly to the fire alarm panel. This may prevent building staff or monitoring from being notified of an abnormal valve condition. Immediate repair is recommended.",
-    technicianNotes: "Confirmed device mechanical operation at valve, but supervisory signal is not received at main FACP. Requires dedicated circuit troubleshooting."
-  });
-
-  // No Access Items
-  list.push({
-    id: "RM-R-01",
-    label: "RM-R-01",
-    type: "Roof Access",
-    category: "Access & Utilities",
-    floor: "Roof",
-    area: "Mechanical Penthouse",
-    location: "Elevator machine room double doors",
-    x: 40,
-    y: 20,
-    status: "no_access",
-    deficiencyNote: "No access - Room locked, building manager did not have keys on site.",
-    qrCode: "QR-RM-R01"
-  });
-
-  list.push({
-    id: "STOR-P1-02",
-    label: "STOR-P1-02",
-    type: "Lockbox",
-    category: "Access & Utilities",
-    floor: "Parkade P1",
-    area: "Storage Room B",
-    location: "Janitorial storage vault",
-    x: 80,
+    location: "Main OS&Y control valve supervisory switch",
+    x: 15,
     y: 80,
-    status: "no_access",
-    deficiencyNote: "No access - Room locked, tenant was away.",
-    qrCode: "QR-STOR-P102"
-  });
-
-  // Attention Required Items
-  list.push({
-    id: "BAT-FACP-01",
-    label: "BAT-FACP-01",
-    type: "Fire Alarm Panel",
-    category: "Detection & Control",
-    floor: "Main Floor",
-    area: "Lobby FACP",
-    location: "Internal battery compartment",
-    x: 91,
-    y: 49,
-    status: "attention_required",
-    lastTestedAt: "2026-06-04T09:16:00Z",
+    status: "not_tested",
+    qrCode: "QR-SUPV-D01",
+    customerNotes: "A sprinkler valve supervisory signal is not reporting properly to the fire alarm panel. This may prevent building staff or monitoring from being notified of an abnormal valve condition. Repair is recommended.",
+    technicianNotes: "Confirmed mechanical operation at the valve, but the supervisory signal is not received at the main FACP. Requires dedicated circuit troubleshooting."
+  },
+  {
+    id: "BF-001",
+    label: "BF-001",
+    type: "Backflow Preventer",
+    category: "Suppression",
+    floor: "Parkade P1",
+    area: "Mechanical Room",
+    location: "Main domestic/fire water supply entry assembly",
+    x: 35,
+    y: 85,
+    status: "passed",
+    lastTestedAt: "2026-06-04T10:40:00Z",
     lastTestedBy: "R. Daniels (Tech #401)",
-    deficiencyNote: "FACP batteries approaching replacement window (manufactured 2022).",
-    qrCode: "QR-BAT-FACP"
-  });
-
-  list.push({
-    id: "EXIT-L2-06",
-    label: "EXIT-L2-06",
+    qrCode: "QR-BF-001"
+  },
+  {
+    id: "EXT-L2-03",
+    label: "EXT-L2-03",
+    type: "Fire Extinguisher",
+    category: "Suppression",
+    floor: "Level 2",
+    area: "Level 2 Corridor",
+    location: "Wall-mounted bracket outside Suite 207",
+    x: 60,
+    y: 50,
+    status: "attention_required",
+    lastTestedAt: "2026-06-04T13:05:00Z",
+    lastTestedBy: "R. Daniels (Tech #401)",
+    deficiencyNote: "Annual service tag expires next month — schedule recharge and inspection.",
+    qrCode: "QR-EXT-L203"
+  },
+  {
+    id: "EXIT-L3-05",
+    label: "EXIT-L3-05",
     type: "Exit Sign",
     category: "Egress & Lighting",
-    floor: "Level 2",
-    area: "North Wing Corridor",
-    location: "Above suite 208 ceiling mount",
-    x: 70,
-    y: 12,
-    status: "attention_required",
-    lastTestedAt: "2026-06-04T13:10:00Z",
+    floor: "Level 3",
+    area: "Level 3 East Corridor",
+    location: "Ceiling-mounted above the east stairwell access door",
+    x: 75,
+    y: 50,
+    status: "passed",
+    lastTestedAt: "2026-06-04T13:20:00Z",
     lastTestedBy: "R. Daniels (Tech #401)",
-    deficiencyNote: "Exit sign dim but operational. Recommended bulb swap.",
-    qrCode: "QR-EXIT-L206"
-  });
-
-  // Fill up the rest of the 85 devices with generic "passed" items to match totals
-  // Passed totals = 76. We currently have ~10 items above. Let's populate remaining 75 devices dynamically.
-  const floors = ["Parkade P1", "Main Floor", "Level 2", "Level 3", "Roof"];
-  const types: DeviceType[] = ["Smoke Detector", "Heat Detector", "Pull Station", "Horn/Strobe", "Emergency Light", "Exit Sign", "Fire Extinguisher"];
-  
-  let idCounter = 1;
-  while (list.length < 85) {
-    const floor = floors[Math.floor(Math.random() * floors.length)];
-    const type = types[Math.floor(Math.random() * types.length)];
-    
-    // Category mapping
-    let category: DeviceCategory = "Detection & Control";
-    if (type === "Horn/Strobe") category = "Notification";
-    else if (type === "Emergency Light" || type === "Exit Sign") category = "Egress & Lighting";
-    else if (type === "Fire Extinguisher") category = "Suppression";
-
-    const id = `${type.split(" ").map(w => w[0]).join("")}-${floor[0]}${floor.includes("P1") ? "P1" : floor.includes("Main") ? "M" : floor.slice(-1)}-${String(idCounter).padStart(2, "0")}`;
-    
-    // Prevent duplicate keys
-    if (list.some(d => d.id === id)) {
-      idCounter++;
-      continue;
-    }
-
-    list.push({
-      id,
-      label: id,
-      type,
-      category,
-      floor,
-      area: "General Area",
-      location: `Ceiling area ${idCounter}`,
-      x: 15 + Math.floor(Math.random() * 70),
-      y: 15 + Math.floor(Math.random() * 70),
-      status: "passed",
-      lastTestedAt: "2026-06-04T14:00:00Z",
-      lastTestedBy: "R. Daniels (Tech #401)",
-      qrCode: `QR-${id}`
-    });
-
-    idCounter++;
+    qrCode: "QR-EXIT-L305"
   }
-
-  return list;
-};
+];
 
 export const MOCK_DEVICES: Device[] = generateHarbourViewDevices();
 
@@ -546,8 +435,8 @@ export const MOCK_REPORTS: Report[] = [
     address: "123 Harbour View Drive, Vancouver, BC",
     date: "June 4, 2026",
     status: "Ready for Review",
-    devicesTested: 85,
-    deficienciesFound: 5,
+    devicesTested: 10,
+    deficienciesFound: 4,
     criticalDeficiencies: 1,
     preparedBy: "R. Daniels (Tech #401)",
     systemsInspected: ["Fire Alarm", "Emergency Lighting", "Fire Extinguishers", "Sprinkler Monitoring"]
