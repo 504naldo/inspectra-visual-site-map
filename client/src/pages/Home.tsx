@@ -9,6 +9,7 @@ import DeviceDetailPanel from "@/components/DeviceDetailPanel";
 import DeficiencyModal from "@/components/DeficiencyModal";
 import DemoWalkthrough from "@/components/DemoWalkthrough";
 import ReportsView from "@/components/ReportsView";
+import ReportPreviewModal from "@/components/ReportPreviewModal";
 import QuotesView from "@/components/QuotesView";
 import MunicipalSharingView from "@/components/MunicipalSharingView";
 import BuildingsView from "@/components/BuildingsView";
@@ -69,6 +70,9 @@ export default function Home() {
   // Deficiency Modal State
   const [isDeficiencyModalOpen, setIsDeficiencyModalOpen] = useState(false);
   const [deficiencyModalIsFailure, setDeficiencyModalIsFailure] = useState(true);
+
+  // Report Preview State
+  const [viewingReport, setViewingReport] = useState<Report | null>(null);
 
   // Terminal Logs State
   const [terminalLogs, setTerminalLogs] = useState<string[]>([
@@ -240,6 +244,35 @@ export default function Home() {
     toast.success("DEFICIENCY RESOLVED", {
       description: "Deficiency marked resolved and the inspection record has been updated."
     });
+  };
+
+  // Generate a fresh inspection report snapshot from the current device states and open its preview
+  const handleGenerateReport = () => {
+    const tested = devices.filter(d => d.status !== "not_tested");
+    const deficient = devices.filter(d => d.status === "failed" || d.status === "deficiency" || d.status === "attention_required");
+    const critical = devices.filter(d => d.status === "failed");
+
+    const newReport: Report = {
+      id: `RPT-${Date.now()}`,
+      reportNumber: `RPT-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-HVA`,
+      buildingId: "BLD-HVA",
+      buildingName: "Harbour View Apartments",
+      address: "123 Harbour View Drive, Vancouver, BC",
+      date: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+      status: "Draft",
+      devicesTested: tested.length,
+      deficienciesFound: deficient.length,
+      criticalDeficiencies: critical.length,
+      preparedBy: "R. Daniels (Tech #401)",
+      systemsInspected: ["Fire Alarm", "Emergency Lighting", "Fire Extinguishers", "Sprinkler Monitoring"]
+    };
+
+    setReports(prev => [newReport, ...prev]);
+    addLog(`REPORT_GEN // DRAFTED NEW COMPLIANCE REPORT ${newReport.reportNumber} FROM CURRENT INSPECTION DATA.`);
+    toast.success("REPORT GENERATED", {
+      description: `Drafted ${newReport.reportNumber} from the current inspection data.`
+    });
+    setViewingReport(newReport);
   };
 
   // Toggle Setup Step
@@ -536,7 +569,14 @@ export default function Home() {
           />
         );
       case "reports":
-        return <ReportsView reports={reports} activeRole={activeRole} />;
+        return (
+          <ReportsView
+            reports={reports}
+            activeRole={activeRole}
+            onAddReport={handleGenerateReport}
+            onViewReport={(report) => setViewingReport(report)}
+          />
+        );
       case "quotes":
         return <QuotesView quotes={quotes} onApproveQuote={handleApproveQuote} activeRole={activeRole} />;
       case "sharing":
@@ -682,6 +722,12 @@ export default function Home() {
         onClose={() => setIsDeficiencyModalOpen(false)}
         isFailure={deficiencyModalIsFailure}
         onSubmit={handleAddDeficiency}
+      />
+
+      <ReportPreviewModal
+        report={viewingReport}
+        devices={devices}
+        onClose={() => setViewingReport(null)}
       />
     </div>
   );
