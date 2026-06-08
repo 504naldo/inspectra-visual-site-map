@@ -59,9 +59,6 @@ export default function Home() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  // Simulation State
-  const [isSimulating, setIsSimulating] = useState(false);
-  const simIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const terminalLogRef = useRef<HTMLDivElement>(null);
 
   // Refs for auto-scrolling the device list sidebar to the selected device
@@ -287,19 +284,6 @@ export default function Home() {
     }));
   };
 
-  // Reset simulation back to defaults
-  const handleResetSimulation = () => {
-    setDevices(MOCK_DEVICES);
-    setReports(MOCK_REPORTS);
-    setQuotes(MOCK_QUOTES);
-    setSharingSettings(DEFAULT_MUNICIPAL_SHARING);
-    setSetupSteps(MOCK_SETUP_STEPS);
-    setSelectedDeviceId(null);
-    setIsSimulating(false);
-    addLog("SYS_RESET // ALL DEVICES AND TELEMETRY LOGS FLUSHED.");
-    toast.info("DATA FLUSHED", { description: "Simulation data reset to default states." });
-  };
-
   // Calculations for Dashboards
   const totalCount = devices.length;
   const passedCount = devices.filter(d => d.status === "passed").length;
@@ -494,15 +478,6 @@ export default function Home() {
                     const matchesStatus = statusFilter === "all" || d.status === statusFilter;
                     const matchesFloor = d.floor === activeFloor;
 
-                    // Government Emergency Filter
-                    if (activeRole === "government") {
-                      const isEmergency = [
-                        "Fire Alarm Panel", "Annunciator", "FDC", "Sprinkler Riser",
-                        "Lockbox", "Roof Access", "Electrical Shutoff", "Gas Shutoff", "Standpipe", "Smoke Control Panel"
-                      ].includes(d.type);
-                      return matchesSearch && matchesCat && matchesStatus && matchesFloor && isEmergency;
-                    }
-
                     return matchesSearch && matchesCat && matchesStatus && matchesFloor;
                   })
                   .map((dev) => (
@@ -592,10 +567,9 @@ export default function Home() {
           <CustomersView 
             onOpenCustomerPortal={(custName) => {
               addLog(`PORTAL_SIM // SIMULATING CUSTOMER ACCESS PORTAL: ${custName.toUpperCase()}`);
-              setActiveRole("property_manager");
               setActivePage("buildings");
               toast.success("CUSTOMER PORTAL ACTIVE", {
-                description: `Switched view role to Property Manager for Harbour View Property Management.`
+                description: `Opened the Buildings view for ${custName}.`
               });
             }} 
           />
