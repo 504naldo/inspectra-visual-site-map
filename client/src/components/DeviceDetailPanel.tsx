@@ -109,7 +109,7 @@ export default function DeviceDetailPanel({
       </div>
 
       {/* Main Metadata */}
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-3 shrink-0">
         <div className="p-2.5 bg-cyan-950/40 border border-cyan-500/20 text-cyan-400">
           {renderDeviceIcon(device.type, "w-6 h-6")}
         </div>

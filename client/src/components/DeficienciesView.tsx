@@ -79,9 +79,9 @@ export default function DeficienciesView({ devices, onSelectDevice, onResolveDef
                     </div>
                     <div className="text-[9px] text-slate-500 uppercase mt-0.5">{def.deviceFloor} // {def.deviceArea}</div>
                   </TableCell>
-                  <TableCell className="text-slate-300 max-w-xs">{def.description.toUpperCase()}</TableCell>
+                  <TableCell className="text-slate-300 max-w-xs whitespace-normal break-words leading-relaxed">{def.description.toUpperCase()}</TableCell>
                   <TableCell>{getPriorityBadge(def.priority)}</TableCell>
-                  <TableCell className="text-slate-400 text-[10px] max-w-xs">{def.recommendedRepair.toUpperCase()}</TableCell>
+                  <TableCell className="text-slate-400 text-[10px] max-w-xs whitespace-normal break-words leading-relaxed">{def.recommendedRepair.toUpperCase()}</TableCell>
                   <TableCell className="text-slate-400">{def.loggedAt}</TableCell>
                   <TableCell>
                     {def.resolved ? (

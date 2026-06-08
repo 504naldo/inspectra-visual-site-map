@@ -320,6 +320,16 @@ const generateHarbourViewDevices = (): Device[] => [
     lastTestedAt: "2026-06-04T12:30:00Z",
     lastTestedBy: "R. Daniels (Tech #401)",
     deficiencyNote: "Cracked glass cover.",
+    deficiencyHistory: [
+      {
+        id: "DEF-PS-W02-01",
+        loggedAt: "2026-06-04",
+        description: "Pull station protective cover is cracked, increasing risk of accidental activation or vandalism.",
+        priority: "low",
+        recommendedRepair: "Replace cracked shear-glass cover with standard Mircom replacement assembly",
+        resolved: false
+      }
+    ],
     qrCode: "QR-PS-W02",
     customerNotes: "The pull station's protective plastic cover is cracked. While the station remains operational, the cover must be replaced to prevent accidental activation or vandalism.",
     technicianNotes: "Station housing is solid and switch contacts are clean. Needs a standard Mircom replacement shear-glass cover."
@@ -338,6 +348,16 @@ const generateHarbourViewDevices = (): Device[] => [
     lastTestedAt: "2026-06-04T11:15:00Z",
     lastTestedBy: "R. Daniels (Tech #401)",
     deficiencyNote: "Failed 30-minute load battery test.",
+    deficiencyHistory: [
+      {
+        id: "DEF-EL-P104-01",
+        loggedAt: "2026-06-04",
+        description: "Emergency lighting unit failed the standard 30-minute load battery test — battery could not hold required charge.",
+        priority: "critical",
+        recommendedRepair: "Replace 12V 9Ah SLA battery and retest under full load",
+        resolved: false
+      }
+    ],
     qrCode: "QR-EL-P104",
     customerNotes: "The emergency lighting battery unit failed to hold its required charge during the standard 30-minute load simulation. Battery or unit replacement is required to maintain egress illumination.",
     technicianNotes: "Battery terminals are oxidized and cell voltage dropped to 4.2V within 5 minutes of load drop. Replace with a standard 12V 9Ah SLA battery."
@@ -356,6 +376,16 @@ const generateHarbourViewDevices = (): Device[] => [
     lastTestedAt: "2026-06-04T09:40:00Z",
     lastTestedBy: "R. Daniels (Tech #401)",
     deficiencyNote: "FDC signage faded and unreadable from street.",
+    deficiencyHistory: [
+      {
+        id: "DEF-FDC-001-01",
+        loggedAt: "2026-06-04",
+        description: "Fire department connection signage has weathered and is no longer legible from the main roadway.",
+        priority: "medium",
+        recommendedRepair: "Replace with new 10x12 reflective aluminum FDC identification sign",
+        resolved: false
+      }
+    ],
     qrCode: "QR-FDC-001",
     customerNotes: "The fire department connection signage has weathered and is no longer clearly visible from the main roadway. Replacement is required to comply with Vancouver Fire Bylaw section 4.1.",
     technicianNotes: "FDC threads are in good condition and the swivel moves freely. Outer sign is heavily oxidized and needs a standard 10x12 reflective aluminum replacement."
@@ -404,6 +434,16 @@ const generateHarbourViewDevices = (): Device[] => [
     lastTestedAt: "2026-06-04T13:05:00Z",
     lastTestedBy: "R. Daniels (Tech #401)",
     deficiencyNote: "Annual service tag expires next month — schedule recharge and inspection.",
+    deficiencyHistory: [
+      {
+        id: "DEF-EXT-L203-01",
+        loggedAt: "2026-06-04",
+        description: "Annual maintenance service tag expires next month — extinguisher requires scheduled recharge and certification inspection.",
+        priority: "low",
+        recommendedRepair: "Schedule annual recharge and certification service before tag expiry",
+        resolved: false
+      }
+    ],
     qrCode: "QR-EXT-L203"
   },
   {
