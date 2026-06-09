@@ -39,9 +39,22 @@ import {
 import { toast } from "sonner";
 
 export default function Home() {
-  // Global App States
-  const [devices, setDevices] = useState<Device[]>(MOCK_DEVICES);
-  const [reports, setReports] = useState<Report[]>(MOCK_REPORTS);
+  // Global App States — devices and reports are persisted to localStorage so
+  // inspection progress survives page reloads (key is versioned to avoid stale shapes)
+  const [devices, setDevices] = useState<Device[]>(() => {
+    try {
+      const saved = localStorage.getItem("inspectra:devices:v1");
+      if (saved) return JSON.parse(saved) as Device[];
+    } catch {}
+    return MOCK_DEVICES;
+  });
+  const [reports, setReports] = useState<Report[]>(() => {
+    try {
+      const saved = localStorage.getItem("inspectra:reports:v1");
+      if (saved) return JSON.parse(saved) as Report[];
+    } catch {}
+    return MOCK_REPORTS;
+  });
   const [quotes, setQuotes] = useState<Quote[]>(MOCK_QUOTES);
   const [sharingSettings, setSharingSettings] = useState<MunicipalSharingSettings>(DEFAULT_MUNICIPAL_SHARING);
   const [setupSteps, setSetupSteps] = useState<SetupStep[]>(MOCK_SETUP_STEPS);
@@ -87,6 +100,14 @@ export default function Home() {
   useEffect(() => {
     document.documentElement.classList.add("dark");
   }, []);
+
+  // Persist inspection state across page reloads
+  useEffect(() => {
+    localStorage.setItem("inspectra:devices:v1", JSON.stringify(devices));
+  }, [devices]);
+  useEffect(() => {
+    localStorage.setItem("inspectra:reports:v1", JSON.stringify(reports));
+  }, [reports]);
 
   // Auto-scroll terminal to latest log entry
   useEffect(() => {
@@ -272,6 +293,17 @@ export default function Home() {
     setViewingReport(newReport);
   };
 
+  // Clear persisted state and restore all devices/reports to their factory defaults
+  const handleResetInspection = () => {
+    localStorage.removeItem("inspectra:devices:v1");
+    localStorage.removeItem("inspectra:reports:v1");
+    setDevices(MOCK_DEVICES);
+    setReports(MOCK_REPORTS);
+    setSelectedDeviceId(null);
+    addLog("SYS_RESET // INSPECTION DATA CLEARED — RESTORED TO DEFAULT STATE.");
+    toast.info("INSPECTION RESET", { description: "All device statuses and reports have been restored to defaults." });
+  };
+
   // Toggle Setup Step
   const handleToggleSetupStep = (stepId: number) => {
     setSetupSteps(prev => prev.map(s => {
@@ -393,6 +425,14 @@ export default function Home() {
                   );
                 })}
               </div>
+
+              <button
+                onClick={handleResetInspection}
+                className="w-full flex items-center justify-center gap-2 py-3 border border-slate-700/50 text-slate-600 hover:text-slate-400 hover:border-slate-600 transition-colors text-[10px] uppercase font-bold"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reset Inspection Data
+              </button>
             </div>
           </div>
         );
