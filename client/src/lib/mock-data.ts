@@ -35,7 +35,9 @@ export interface DeficiencyHistory {
   loggedAt: string;
   description: string;
   priority: "low" | "medium" | "high" | "critical";
+  nfpaCode?: string;
   recommendedRepair: string;
+  photoUrl?: string;
   resolved: boolean;
   resolvedAt?: string;
 }

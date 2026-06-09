@@ -3,28 +3,28 @@ import { Device, DeficiencyHistory } from "@/lib/mock-data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, CheckCircle, ArrowUpRight, Check } from "lucide-react";
+import { AlertTriangle, CheckCircle, ArrowUpRight, Check, Pencil } from "lucide-react";
 
 interface DeficienciesViewProps {
   devices: Device[];
   onSelectDevice?: (deviceId: string) => void;
   onResolveDeficiency?: (deviceId: string, deficiencyId: string) => void;
+  onEditDeficiency?: (deviceId: string, deficiency: DeficiencyHistory) => void;
   activeRole: string;
 }
 
-export default function DeficienciesView({ devices, onSelectDevice, onResolveDeficiency, activeRole }: DeficienciesViewProps) {
+export default function DeficienciesView({ devices, onSelectDevice, onResolveDeficiency, onEditDeficiency, activeRole }: DeficienciesViewProps) {
 
-  // Extract all deficiencies from all devices
-  const loggedDeficiencies = devices.flatMap((dev) => {
-    return (dev.deficiencyHistory || []).map((def) => ({
+  const loggedDeficiencies = devices.flatMap((dev) =>
+    (dev.deficiencyHistory || []).map((def) => ({
       ...def,
       deviceId: dev.id,
       deviceLabel: dev.label,
       deviceType: dev.type,
       deviceFloor: dev.floor,
       deviceArea: dev.area
-    }));
-  });
+    }))
+  );
 
   const getPriorityBadge = (priority: DeficiencyHistory["priority"]) => {
     switch (priority) {
@@ -101,6 +101,18 @@ export default function DeficienciesView({ devices, onSelectDevice, onResolveDef
                           title="Locate Node on Blueprint"
                         >
                           <ArrowUpRight className="w-4 h-4" />
+                        </Button>
+                      )}
+
+                      {activeRole === "fire_company" && !def.resolved && onEditDeficiency && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => onEditDeficiency(def.deviceId, def)}
+                          className="h-10 w-10 rounded-none text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10"
+                          title="Edit Deficiency"
+                        >
+                          <Pencil className="w-4 h-4" />
                         </Button>
                       )}
 

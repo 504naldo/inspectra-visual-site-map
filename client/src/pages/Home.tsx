@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
   MOCK_DEVICES, MOCK_REPORTS, MOCK_QUOTES, DEFAULT_MUNICIPAL_SHARING, MOCK_SETUP_STEPS,
-  Device, DeviceStatus, FLOORS, Report, Quote, MunicipalSharingSettings, SetupStep,
+  Device, DeviceStatus, DeficiencyHistory, FLOORS, Report, Quote, MunicipalSharingSettings, SetupStep,
   MOCK_BUILDINGS
 } from "@/lib/mock-data";
 import MapCanvas from "@/components/MapCanvas";
@@ -80,6 +80,8 @@ export default function Home() {
   // Deficiency Modal State
   const [isDeficiencyModalOpen, setIsDeficiencyModalOpen] = useState(false);
   const [deficiencyModalIsFailure, setDeficiencyModalIsFailure] = useState(true);
+  // When set, the deficiency modal opens in edit mode for this existing deficiency
+  const [editingDeficiency, setEditingDeficiency] = useState<{ deviceId: string; deficiency: DeficiencyHistory } | null>(null);
 
   // Report Preview State
   const [viewingReport, setViewingReport] = useState<Report | null>(null);
@@ -190,7 +192,9 @@ export default function Home() {
               resolved: false,
               priority: data.priority,
               description: data.description,
-              recommendedRepair: data.recommendedRepair
+              nfpaCode: data.nfpaCode,
+              recommendedRepair: data.recommendedRepair,
+              photoUrl: data.photoUrl
             },
             ...(d.deficiencyHistory || [])
           ]
@@ -291,6 +295,49 @@ export default function Home() {
       description: `Drafted ${newReport.reportNumber} from the current inspection data.`
     });
     setViewingReport(newReport);
+  };
+
+  // Mark every not_tested device on the given floor as passed in one action
+  const handleBulkFloorPass = (floor: string) => {
+    const targets = devices.filter(d => d.floor === floor && d.status === "not_tested");
+    if (targets.length === 0) return;
+    const today = new Date().toISOString().split("T")[0];
+    setDevices(prev => prev.map(d => {
+      if (d.floor !== floor || d.status !== "not_tested") return d;
+      return {
+        ...d,
+        status: "passed",
+        lastTestedAt: new Date().toISOString(),
+        lastTestedBy: "R. Daniels (Tech #401)",
+        serviceHistory: [
+          { date: today, action: "Bulk floor pass — all untested devices marked compliant", technician: "R. Daniels (Tech #401)" },
+          ...(d.serviceHistory || [])
+        ]
+      };
+    }));
+    addLog(`BULK_PASS // FLOOR: ${floor.toUpperCase()} — ${targets.length} DEVICE(S) MARKED PASSED.`);
+    toast.success("FLOOR MARKED PASSED", { description: `${targets.length} untested device(s) on ${floor} marked as passed.` });
+  };
+
+  // Apply edits to an existing deficiency record
+  const handleUpdateDeficiency = (deviceId: string, deficiencyId: string, updates: { priority: DeficiencyHistory["priority"]; description: string; nfpaCode: string; recommendedRepair: string; photoUrl?: string }) => {
+    setDevices(prev => prev.map(d => {
+      if (d.id !== deviceId) return d;
+      return {
+        ...d,
+        deficiencyHistory: (d.deficiencyHistory || []).map(def =>
+          def.id === deficiencyId ? { ...def, ...updates } : def
+        )
+      };
+    }));
+    addLog(`DEFICIENCY_EDITED // DEVICE: ${deviceId} // ID: ${deficiencyId}`);
+    toast.success("DEFICIENCY UPDATED", { description: "Changes saved to the deficiency record." });
+  };
+
+  // Save technician-internal notes for a device
+  const handleUpdateTechnicianNotes = (deviceId: string, notes: string) => {
+    setDevices(prev => prev.map(d => d.id === deviceId ? { ...d, technicianNotes: notes } : d));
+    addLog(`NOTES_UPDATED // DEVICE: ${deviceId}`);
   };
 
   // Clear persisted state and restore all devices/reports to their factory defaults
@@ -497,14 +544,25 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Floor Progress Counter */}
+              {/* Floor Progress Counter + Bulk Pass */}
               {(() => {
                 const floorDevices = devices.filter(d => d.floor === activeFloor);
                 const testedCount = floorDevices.filter(d => d.status !== "not_tested").length;
+                const untestedCount = floorDevices.filter(d => d.status === "not_tested").length;
                 return (
-                  <div className="flex items-center justify-between border border-cyan-500/10 bg-slate-900/40 px-3 py-2">
-                    <span className="font-bold uppercase tracking-wider text-cyan-300 truncate">{activeFloor}</span>
-                    <span className="text-slate-500 shrink-0 ml-2">{testedCount} / {floorDevices.length} TESTED</span>
+                  <div className="border border-cyan-500/10 bg-slate-900/40">
+                    <div className="flex items-center justify-between px-3 py-2">
+                      <span className="font-bold uppercase tracking-wider text-cyan-300 truncate">{activeFloor}</span>
+                      <span className="text-slate-500 shrink-0 ml-2">{testedCount} / {floorDevices.length} TESTED</span>
+                    </div>
+                    {untestedCount > 0 && (
+                      <button
+                        onClick={() => handleBulkFloorPass(activeFloor)}
+                        className="w-full px-3 py-1.5 border-t border-cyan-500/10 text-[10px] font-bold text-emerald-400/70 hover:text-emerald-400 hover:bg-emerald-500/5 transition-colors text-left uppercase"
+                      >
+                        ✓ Pass all {untestedCount} untested on this floor
+                      </button>
+                    )}
                   </div>
                 );
               })()}
@@ -562,11 +620,12 @@ export default function Home() {
             />
 
             {/* Device Detail Panel */}
-            <DeviceDetailPanel 
+            <DeviceDetailPanel
               device={devices.find(d => d.id === selectedDeviceId) || null}
               onClose={() => setSelectedDeviceId(null)}
               onUpdateStatus={handleUpdateDeviceStatus}
               onTriggerDeficiencyModal={handleTriggerDeficiencyModal}
+              onUpdateTechnicianNotes={handleUpdateTechnicianNotes}
               activeRole={activeRole}
             />
           </div>
@@ -580,6 +639,7 @@ export default function Home() {
               setActivePage("map");
             }}
             onResolveDeficiency={handleResolveDeficiency}
+            onEditDeficiency={(deviceId, deficiency) => setEditingDeficiency({ deviceId, deficiency })}
             activeRole={activeRole}
           />
         );
@@ -730,12 +790,31 @@ export default function Home() {
         {renderActivePageContent()}
       </div>
 
-      {/* Deficiency Modal */}
+      {/* Deficiency Modal — create mode */}
       <DeficiencyModal
         isOpen={isDeficiencyModalOpen}
         onClose={() => setIsDeficiencyModalOpen(false)}
         isFailure={deficiencyModalIsFailure}
         onSubmit={handleAddDeficiency}
+      />
+
+      {/* Deficiency Modal — edit mode */}
+      <DeficiencyModal
+        isOpen={!!editingDeficiency}
+        onClose={() => setEditingDeficiency(null)}
+        isFailure={false}
+        initialData={editingDeficiency ? {
+          priority: editingDeficiency.deficiency.priority,
+          description: editingDeficiency.deficiency.description,
+          nfpaCode: editingDeficiency.deficiency.nfpaCode ?? "",
+          recommendedRepair: editingDeficiency.deficiency.recommendedRepair,
+          photoUrl: editingDeficiency.deficiency.photoUrl
+        } : undefined}
+        onSubmit={(updates) => {
+          if (!editingDeficiency) return;
+          handleUpdateDeficiency(editingDeficiency.deviceId, editingDeficiency.deficiency.id, updates);
+          setEditingDeficiency(null);
+        }}
       />
 
       <ReportPreviewModal

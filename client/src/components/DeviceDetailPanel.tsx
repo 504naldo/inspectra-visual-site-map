@@ -1,11 +1,12 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Device, DeviceStatus, DeviceType } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Flame, Shield, Radio, Droplets, Waves, ShieldAlert, Compass, 
-  ArrowRight, Key, HelpCircle, Check, X, Eye, EyeOff, Camera, Clock, QrCode
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Flame, Shield, Radio, Droplets, Waves, ShieldAlert, Compass,
+  ArrowRight, Key, HelpCircle, Check, X, Eye, EyeOff, Camera, Clock, QrCode, Pencil
 } from "lucide-react";
 
 interface DeviceDetailPanelProps {
@@ -13,7 +14,8 @@ interface DeviceDetailPanelProps {
   onClose: () => void;
   onUpdateStatus: (deviceId: string, status: DeviceStatus) => void;
   onTriggerDeficiencyModal: (isFailure: boolean) => void;
-  activeRole: string; // "fire_company" | "property_manager" | "government"
+  onUpdateTechnicianNotes: (deviceId: string, notes: string) => void;
+  activeRole: string;
 }
 
 export default function DeviceDetailPanel({
@@ -21,8 +23,17 @@ export default function DeviceDetailPanel({
   onClose,
   onUpdateStatus,
   onTriggerDeficiencyModal,
+  onUpdateTechnicianNotes,
   activeRole
 }: DeviceDetailPanelProps) {
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [draftNotes, setDraftNotes] = useState("");
+
+  // Reset edit state whenever the selected device changes
+  useEffect(() => {
+    setIsEditingNotes(false);
+    setDraftNotes(device?.technicianNotes ?? "");
+  }, [device?.id]);
   if (!device) return null;
 
   // Count of unresolved deficiencies logged against this device
@@ -175,17 +186,56 @@ export default function DeviceDetailPanel({
           </p>
         </div>
 
-        {/* Technician-Only Notes (Hidden in Gov Mode or Client Mode if configured) */}
+        {/* Technician-Only Notes — editable for fire_company role */}
         {activeRole === "fire_company" && (
           <div className="space-y-1">
             <div className="flex items-center gap-1.5 text-[9px] text-rose-400/80 font-bold">
               <EyeOff className="w-3.5 h-3.5 text-rose-500" />
               <span>TECHNICIAN_INTERNAL_NOTES</span>
               <Badge className="bg-rose-950/20 text-rose-400 border-rose-500/10 text-[8px] scale-90 py-0 px-1 rounded-none font-bold">INTERNAL_ONLY</Badge>
+              {!isEditingNotes && (
+                <button
+                  onClick={() => { setDraftNotes(device.technicianNotes ?? ""); setIsEditingNotes(true); }}
+                  className="ml-auto text-slate-600 hover:text-cyan-400 transition-colors"
+                  title="Edit notes"
+                >
+                  <Pencil className="w-3 h-3" />
+                </button>
+              )}
             </div>
-            <p className="text-rose-300/90 text-[10px] bg-rose-950/10 p-2 border border-rose-500/10 leading-relaxed uppercase">
-              {device.technicianNotes || "NO INTERNAL TECHNICIAN TELEMETRY LOGGED."}
-            </p>
+            {isEditingNotes ? (
+              <div className="space-y-1.5">
+                <Textarea
+                  value={draftNotes}
+                  onChange={(e) => setDraftNotes(e.target.value)}
+                  className="bg-rose-950/10 border-rose-500/20 text-rose-300 rounded-none text-[10px] uppercase resize-none"
+                  rows={3}
+                  autoFocus
+                  placeholder="ADD TECHNICIAN NOTE..."
+                />
+                <div className="flex gap-1.5">
+                  <Button
+                    size="sm"
+                    onClick={() => { onUpdateTechnicianNotes(device.id, draftNotes); setIsEditingNotes(false); }}
+                    className="h-8 rounded-none bg-cyan-950 border border-cyan-500/40 text-cyan-400 hover:bg-cyan-900 text-[10px] font-bold px-3 flex items-center gap-1"
+                  >
+                    <Check className="w-3 h-3" /> SAVE
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setIsEditingNotes(false)}
+                    className="h-8 rounded-none border border-slate-700 text-slate-500 hover:text-cyan-400 text-[10px] font-bold px-3"
+                  >
+                    CANCEL
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-rose-300/90 text-[10px] bg-rose-950/10 p-2 border border-rose-500/10 leading-relaxed uppercase">
+                {device.technicianNotes || "NO INTERNAL TECHNICIAN TELEMETRY LOGGED."}
+              </p>
+            )}
           </div>
         )}
       </div>
