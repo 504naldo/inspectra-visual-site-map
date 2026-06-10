@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { Device, Report } from "@/lib/mock-data";
 import { FileText, Download, ShieldCheck, AlertTriangle, PenLine } from "lucide-react";
 import { toast } from "sonner";
+import { exportReportToPDF } from "@/lib/pdf-export";
 
 interface ReportPreviewModalProps {
   report: Report | null;
@@ -54,6 +55,7 @@ export default function ReportPreviewModal({ report, devices, onClose }: ReportP
       : 0;
 
   const handleExportPDF = () => {
+    exportReportToPDF(report, devices);
     toast.success("PDF EXPORT SUCCESSFUL", {
       description: `DOWNLOADED REPORT: ${report.reportNumber}.PDF`
     });

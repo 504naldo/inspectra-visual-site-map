@@ -1,23 +1,26 @@
 import React from "react";
-import { Report } from "@/lib/mock-data";
+import { Device, Report } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FileText, Download, Eye, Plus, Send, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { exportReportToPDF } from "@/lib/pdf-export";
 
 interface ReportsViewProps {
   reports: Report[];
+  devices: Device[];
   onAddReport?: () => void;
   activeRole: string;
   onViewReport?: (report: Report) => void;
 }
 
-export default function ReportsView({ reports, onAddReport, activeRole, onViewReport }: ReportsViewProps) {
-  
-  const handleExportPDF = (reportNumber: string) => {
+export default function ReportsView({ reports, devices, onAddReport, activeRole, onViewReport }: ReportsViewProps) {
+
+  const handleExportPDF = (report: Report) => {
+    exportReportToPDF(report, devices);
     toast.success("PDF EXPORT SUCCESSFUL", {
-      description: `DOWNLOADED REPORT: ${reportNumber}.PDF`
+      description: `DOWNLOADED REPORT: ${report.reportNumber}.PDF`
     });
   };
 
@@ -114,7 +117,7 @@ export default function ReportsView({ reports, onAddReport, activeRole, onViewRe
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleExportPDF(report.reportNumber)}
+                      onClick={() => handleExportPDF(report)}
                       className="h-10 w-10 rounded-none text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10"
                       title="Export PDF"
                     >

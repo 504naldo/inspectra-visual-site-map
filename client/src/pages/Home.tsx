@@ -647,6 +647,7 @@ export default function Home() {
         return (
           <ReportsView
             reports={reports}
+            devices={devices}
             activeRole={activeRole}
             onAddReport={handleGenerateReport}
             onViewReport={(report) => setViewingReport(report)}
