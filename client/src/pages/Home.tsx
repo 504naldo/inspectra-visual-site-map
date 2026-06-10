@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
   MOCK_DEVICES, MOCK_REPORTS, MOCK_QUOTES, DEFAULT_MUNICIPAL_SHARING, MOCK_SETUP_STEPS,
-  Device, DeviceStatus, FLOORS, Report, Quote, MunicipalSharingSettings, SetupStep,
+  Device, DeviceStatus, DeficiencyHistory, FLOORS, Report, Quote, MunicipalSharingSettings, SetupStep,
   MOCK_BUILDINGS
 } from "@/lib/mock-data";
 import MapCanvas from "@/components/MapCanvas";
@@ -9,6 +9,7 @@ import DeviceDetailPanel from "@/components/DeviceDetailPanel";
 import DeficiencyModal from "@/components/DeficiencyModal";
 import DemoWalkthrough from "@/components/DemoWalkthrough";
 import ReportsView from "@/components/ReportsView";
+import ReportPreviewModal from "@/components/ReportPreviewModal";
 import QuotesView from "@/components/QuotesView";
 import MunicipalSharingView from "@/components/MunicipalSharingView";
 import BuildingsView from "@/components/BuildingsView";
@@ -38,36 +39,52 @@ import {
 import { toast } from "sonner";
 
 export default function Home() {
-  // Global App States
-  const [devices, setDevices] = useState<Device[]>(MOCK_DEVICES);
-  const [reports, setReports] = useState<Report[]>(MOCK_REPORTS);
+  // Global App States — devices and reports are persisted to localStorage so
+  // inspection progress survives page reloads (key is versioned to avoid stale shapes)
+  const [devices, setDevices] = useState<Device[]>(() => {
+    try {
+      const saved = localStorage.getItem("inspectra:devices:v1");
+      if (saved) return JSON.parse(saved) as Device[];
+    } catch {}
+    return MOCK_DEVICES;
+  });
+  const [reports, setReports] = useState<Report[]>(() => {
+    try {
+      const saved = localStorage.getItem("inspectra:reports:v1");
+      if (saved) return JSON.parse(saved) as Report[];
+    } catch {}
+    return MOCK_REPORTS;
+  });
   const [quotes, setQuotes] = useState<Quote[]>(MOCK_QUOTES);
   const [sharingSettings, setSharingSettings] = useState<MunicipalSharingSettings>(DEFAULT_MUNICIPAL_SHARING);
   const [setupSteps, setSetupSteps] = useState<SetupStep[]>(MOCK_SETUP_STEPS);
   
   // Navigation & View State
-  const [activePage, setActivePage] = useState<string>("map"); 
-  // "buildings" | "map" | "deficiencies" | "reports" | "quotes" | "sharing" | "setup" | "company" | "customers" | "technicians" | "templates" | "library" | "deficiency-lang" | "import" | "architecture"
+  const [activePage, setActivePage] = useState<string>("dashboard");
   const [activeFloor, setActiveFloor] = useState<string>("Main Floor");
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
-  
-  // Multi-Role & Theme States
-  const [activeRole, setActiveRole] = useState<string>("fire_company"); // "fire_company" | "property_manager" | "government"
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
+
+  // Role fixed to fire_company for MVP — multi-role is a future feature
+  const activeRole = "fire_company";
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  // Simulation State
-  const [isSimulating, setIsSimulating] = useState(false);
-  const simIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const terminalLogRef = useRef<HTMLDivElement>(null);
+
+  // Refs for auto-scrolling the device list sidebar to the selected device
+  const deviceListItemRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   // Deficiency Modal State
   const [isDeficiencyModalOpen, setIsDeficiencyModalOpen] = useState(false);
   const [deficiencyModalIsFailure, setDeficiencyModalIsFailure] = useState(true);
+  // When set, the deficiency modal opens in edit mode for this existing deficiency
+  const [editingDeficiency, setEditingDeficiency] = useState<{ deviceId: string; deficiency: DeficiencyHistory } | null>(null);
+
+  // Report Preview State
+  const [viewingReport, setViewingReport] = useState<Report | null>(null);
 
   // Terminal Logs State
   const [terminalLogs, setTerminalLogs] = useState<string[]>([
@@ -81,115 +98,18 @@ export default function Home() {
     setTerminalLogs(prev => [...prev, `[${timestamp}] ${msg}`].slice(-50)); // keep last 50
   };
 
-  // Walkthrough State
-  const [walkthroughStep, setWalkthroughStep] = useState<number>(0); // 0 means not started
-  const [walkthroughCompleted, setWalkthroughCompleted] = useState<boolean>(false);
-
-  // Effect to apply global theme class
+  // Apply dark mode on mount (dark-only for MVP)
   useEffect(() => {
-    const root = window.document.documentElement;
-    if (theme === "light") {
-      root.classList.remove("dark");
-      root.classList.add("light");
-    } else {
-      root.classList.remove("light");
-      root.classList.add("dark");
-    }
-  }, [theme]);
+    document.documentElement.classList.add("dark");
+  }, []);
 
-  // Handle active simulation sweep
+  // Persist inspection state across page reloads
   useEffect(() => {
-    if (isSimulating) {
-      addLog("SYS_SIM // AUTOMATED TELEMETRY SWEEP INITIATED.");
-      toast.success("SIMULATION SWEEP ACTIVE", {
-        description: "Scanning and testing devices sequentially every 1.5 seconds."
-      });
-
-      simIntervalRef.current = setInterval(() => {
-        setDevices(currentDevices => {
-          // Find all untested devices
-          const untested = currentDevices.filter(d => d.status === "not_tested");
-          if (untested.length === 0) {
-            setIsSimulating(false);
-            addLog("SYS_SIM // SWEEP COMPLETED. ALL REGISTERED HARDWARE COMPLIANT OR LOGGED.");
-            toast.success("SWEEP COMPLETED", { description: "All devices have been inspected." });
-            return currentDevices;
-          }
-
-          // Pick a random device
-          const randomIndex = Math.floor(Math.random() * untested.length);
-          const targetDevice = untested[randomIndex];
-
-          // Determine random inspection outcome
-          // 80% pass, 10% fail, 5% deficiency, 5% no access
-          const rand = Math.random();
-          let finalStatus: DeviceStatus = "passed";
-          let note = "";
-
-          if (rand > 0.95) {
-            finalStatus = "no_access";
-            note = "No access - Door locked / tenant away.";
-          } else if (rand > 0.90) {
-            finalStatus = "deficiency";
-            note = "Minor dust build-up / cover cracked.";
-          } else if (rand > 0.80) {
-            finalStatus = "failed";
-            note = "Failed battery backup load test.";
-          }
-
-          // Log the sweep event
-          const statusText = finalStatus.toUpperCase();
-          addLog(`SYS_SWEEP // TESTED: ${targetDevice.label} [${targetDevice.type}] -> ${statusText}`);
-
-          // Trigger sonner toast for critical failure/deficiencies
-          if (finalStatus === "failed") {
-            toast.error(`ALARM // DEFICIENCY DETECTED: ${targetDevice.label}`, {
-              description: `${targetDevice.type} at ${targetDevice.floor} failed test.`
-            });
-          } else if (finalStatus === "deficiency") {
-            toast.warning(`WARNING // MINOR ISSUE: ${targetDevice.label}`, {
-              description: `${targetDevice.type} needs attention.`
-            });
-          } else if (finalStatus === "passed") {
-            toast.success(`TEST_PASS // COMPLIANT: ${targetDevice.label}`);
-          }
-
-          // Return updated device array
-          return currentDevices.map(d => {
-            if (d.id === targetDevice.id) {
-              return {
-                ...d,
-                status: finalStatus,
-                lastTestedAt: new Date().toISOString(),
-                lastTestedBy: "R. Daniels (Tech #401)",
-                deficiencyNote: note,
-                serviceHistory: [
-                  {
-                    date: new Date().toISOString().split('T')[0],
-                    action: `Simulated Inspection: ${statusText}`,
-                    technician: "R. Daniels (Tech #401)"
-                  },
-                  ...(d.serviceHistory || [])
-                ]
-              };
-            }
-            return d;
-          });
-        });
-      }, 1500);
-    } else {
-      if (simIntervalRef.current) {
-        clearInterval(simIntervalRef.current);
-        addLog("SYS_SIM // AUTOMATED TELEMETRY SWEEP SUSPENDED.");
-      }
-    }
-
-    return () => {
-      if (simIntervalRef.current) {
-        clearInterval(simIntervalRef.current);
-      }
-    };
-  }, [isSimulating]);
+    localStorage.setItem("inspectra:devices:v1", JSON.stringify(devices));
+  }, [devices]);
+  useEffect(() => {
+    localStorage.setItem("inspectra:reports:v1", JSON.stringify(reports));
+  }, [reports]);
 
   // Auto-scroll terminal to latest log entry
   useEffect(() => {
@@ -197,6 +117,13 @@ export default function Home() {
       terminalLogRef.current.scrollTop = terminalLogRef.current.scrollHeight;
     }
   }, [terminalLogs]);
+
+  // Auto-scroll the device list sidebar to the selected device (e.g. when selected via the map canvas)
+  useEffect(() => {
+    if (selectedDeviceId && activePage === "map") {
+      deviceListItemRefs.current[selectedDeviceId]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [selectedDeviceId, activePage]);
 
   // Update a single device status manually
   const handleUpdateDeviceStatus = (deviceId: string, status: DeviceStatus, note?: string) => {
@@ -238,8 +165,6 @@ export default function Home() {
     nfpaCode: string;
     recommendedRepair: string;
     photoUrl?: string;
-    autoGenerateQuote: boolean;
-    autoGenerateReport: boolean;
   }) => {
     if (!selectedDeviceId) return;
 
@@ -267,7 +192,9 @@ export default function Home() {
               resolved: false,
               priority: data.priority,
               description: data.description,
-              recommendedRepair: data.recommendedRepair
+              nfpaCode: data.nfpaCode,
+              recommendedRepair: data.recommendedRepair,
+              photoUrl: data.photoUrl
             },
             ...(d.deficiencyHistory || [])
           ]
@@ -277,50 +204,6 @@ export default function Home() {
     }));
 
     addLog(`DEFICIENCY_LOGGED // DEVICE: ${targetDevice.label} // PRIORITY: ${data.priority.toUpperCase()} // NFPA: ${data.nfpaCode}`);
-
-    // Optionally auto-generate Quote Item
-    if (data.autoGenerateQuote) {
-      const labourCost = data.priority === "critical" || data.priority === "high" ? 180 : 90;
-      const materialCost = targetDevice.type === "Smoke Detector" ? 120 : 
-                           targetDevice.type === "Sprinkler Riser" ? 450 : 75;
-
-      const newQuoteItem = {
-        id: `QI-${Date.now()}`,
-        deviceId: targetDevice.id,
-        deviceLabel: targetDevice.label,
-        description: data.recommendedRepair,
-        labourCost,
-        materialCost,
-        qty: 1
-      };
-
-      setQuotes(prev => prev.map(q => {
-        if (q.id === "Q-2026-1047") { // Target active demo quote
-          return {
-            ...q,
-            status: "Awaiting Approval",
-            items: [...q.items, newQuoteItem]
-          };
-        }
-        return q;
-      }));
-
-      addLog(`QUOTE_GEN // APPENDED REPAIR ESTIMATE TO Q-2026-1047.`);
-    }
-
-    // Optionally auto-generate Compliance Report
-    if (data.autoGenerateReport) {
-      setReports(prev => prev.map(r => {
-        if (r.id === "RPT-2026-0614-HVA") {
-          return {
-            ...r,
-            status: "Ready for Review"
-          };
-        }
-        return r;
-      }));
-      addLog(`REPORT_GEN // RE-DRAFTED COMPLIANCE REPORT RPT-2026-0614-HVA.`);
-    }
 
     toast.success("DEFICIENCY REGISTERED", {
       description: `Successfully logged ${status.toUpperCase()} on device ${targetDevice.label}.`
@@ -358,6 +241,116 @@ export default function Home() {
     }));
   };
 
+  // Mark a logged deficiency as resolved; restore the device to "passed" once it has no other open deficiencies
+  const handleResolveDeficiency = (deviceId: string, deficiencyId: string) => {
+    setDevices(prev => prev.map(d => {
+      if (d.id !== deviceId) return d;
+
+      const updatedHistory = (d.deficiencyHistory || []).map(def =>
+        def.id === deficiencyId
+          ? { ...def, resolved: true, resolvedAt: new Date().toISOString().split('T')[0] }
+          : def
+      );
+      const stillOpen = updatedHistory.some(def => !def.resolved);
+
+      addLog(`DEFICIENCY_RESOLVED // DEVICE: ${d.label} // ID: ${deficiencyId}`);
+
+      return {
+        ...d,
+        deficiencyHistory: updatedHistory,
+        status: stillOpen ? d.status : "passed",
+        deficiencyNote: stillOpen ? d.deficiencyNote : undefined
+      };
+    }));
+
+    toast.success("DEFICIENCY RESOLVED", {
+      description: "Deficiency marked resolved and the inspection record has been updated."
+    });
+  };
+
+  // Generate a fresh inspection report snapshot from the current device states and open its preview
+  const handleGenerateReport = () => {
+    const tested = devices.filter(d => d.status !== "not_tested");
+    const deficient = devices.filter(d => d.status === "failed" || d.status === "deficiency" || d.status === "attention_required");
+    const critical = devices.filter(d => d.status === "failed");
+
+    const newReport: Report = {
+      id: `RPT-${Date.now()}`,
+      reportNumber: `RPT-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-HVA`,
+      buildingId: "BLD-HVA",
+      buildingName: "Harbour View Apartments",
+      address: "123 Harbour View Drive, Vancouver, BC",
+      date: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+      status: "Draft",
+      devicesTested: tested.length,
+      deficienciesFound: deficient.length,
+      criticalDeficiencies: critical.length,
+      preparedBy: "R. Daniels (Tech #401)",
+      systemsInspected: ["Fire Alarm", "Emergency Lighting", "Fire Extinguishers", "Sprinkler Monitoring"]
+    };
+
+    setReports(prev => [newReport, ...prev]);
+    addLog(`REPORT_GEN // DRAFTED NEW COMPLIANCE REPORT ${newReport.reportNumber} FROM CURRENT INSPECTION DATA.`);
+    toast.success("REPORT GENERATED", {
+      description: `Drafted ${newReport.reportNumber} from the current inspection data.`
+    });
+    setViewingReport(newReport);
+  };
+
+  // Mark every not_tested device on the given floor as passed in one action
+  const handleBulkFloorPass = (floor: string) => {
+    const targets = devices.filter(d => d.floor === floor && d.status === "not_tested");
+    if (targets.length === 0) return;
+    const today = new Date().toISOString().split("T")[0];
+    setDevices(prev => prev.map(d => {
+      if (d.floor !== floor || d.status !== "not_tested") return d;
+      return {
+        ...d,
+        status: "passed",
+        lastTestedAt: new Date().toISOString(),
+        lastTestedBy: "R. Daniels (Tech #401)",
+        serviceHistory: [
+          { date: today, action: "Bulk floor pass — all untested devices marked compliant", technician: "R. Daniels (Tech #401)" },
+          ...(d.serviceHistory || [])
+        ]
+      };
+    }));
+    addLog(`BULK_PASS // FLOOR: ${floor.toUpperCase()} — ${targets.length} DEVICE(S) MARKED PASSED.`);
+    toast.success("FLOOR MARKED PASSED", { description: `${targets.length} untested device(s) on ${floor} marked as passed.` });
+  };
+
+  // Apply edits to an existing deficiency record
+  const handleUpdateDeficiency = (deviceId: string, deficiencyId: string, updates: { priority: DeficiencyHistory["priority"]; description: string; nfpaCode: string; recommendedRepair: string; photoUrl?: string }) => {
+    setDevices(prev => prev.map(d => {
+      if (d.id !== deviceId) return d;
+      return {
+        ...d,
+        deficiencyHistory: (d.deficiencyHistory || []).map(def =>
+          def.id === deficiencyId ? { ...def, ...updates } : def
+        )
+      };
+    }));
+    addLog(`DEFICIENCY_EDITED // DEVICE: ${deviceId} // ID: ${deficiencyId}`);
+    toast.success("DEFICIENCY UPDATED", { description: "Changes saved to the deficiency record." });
+  };
+
+  // Save technician-internal notes for a device
+  const handleUpdateTechnicianNotes = (deviceId: string, notes: string) => {
+    setDevices(prev => prev.map(d => d.id === deviceId ? { ...d, technicianNotes: notes } : d));
+    addLog(`NOTES_UPDATED // DEVICE: ${deviceId}`);
+  };
+
+  // Clear persisted state and restore all devices/reports to their factory defaults
+  const handleResetInspection = () => {
+    localStorage.removeItem("inspectra:devices:v1");
+    localStorage.removeItem("inspectra:reports:v1");
+    setDevices(MOCK_DEVICES);
+    setReports(MOCK_REPORTS);
+    setSelectedDeviceId(null);
+    addLog("SYS_RESET // INSPECTION DATA CLEARED — RESTORED TO DEFAULT STATE.");
+    toast.info("INSPECTION RESET", { description: "All device statuses and reports have been restored to defaults." });
+  };
+
   // Toggle Setup Step
   const handleToggleSetupStep = (stepId: number) => {
     setSetupSteps(prev => prev.map(s => {
@@ -368,19 +361,6 @@ export default function Home() {
       }
       return s;
     }));
-  };
-
-  // Reset simulation back to defaults
-  const handleResetSimulation = () => {
-    setDevices(MOCK_DEVICES);
-    setReports(MOCK_REPORTS);
-    setQuotes(MOCK_QUOTES);
-    setSharingSettings(DEFAULT_MUNICIPAL_SHARING);
-    setSetupSteps(MOCK_SETUP_STEPS);
-    setSelectedDeviceId(null);
-    setIsSimulating(false);
-    addLog("SYS_RESET // ALL DEVICES AND TELEMETRY LOGS FLUSHED.");
-    toast.info("DATA FLUSHED", { description: "Simulation data reset to default states." });
   };
 
   // Calculations for Dashboards
@@ -395,6 +375,115 @@ export default function Home() {
   // Render the proper active page view
   const renderActivePageContent = () => {
     switch (activePage) {
+      case "dashboard":
+        return (
+          <div className="flex-1 p-6 overflow-y-auto">
+            <div className="max-w-3xl mx-auto space-y-6">
+              <div>
+                <h2 className="text-xl font-bold text-cyan-300 uppercase tracking-wider">Harbour View Apartments</h2>
+                <p className="text-slate-500 text-sm mt-1">123 Harbour View Drive, Vancouver, BC · Multi-Family Residential</p>
+              </div>
+
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {[
+                  { label: "Total Devices", value: totalCount, color: "text-cyan-300" },
+                  { label: "Tested", value: testedCount, color: "text-cyan-300" },
+                  { label: "Passed", value: passedCount, color: "text-emerald-400" },
+                  { label: "Open Issues", value: failedCount + warningCount, color: (failedCount + warningCount) > 0 ? "text-rose-400" : "text-emerald-400" },
+                ].map(({ label, value, color }) => (
+                  <div key={label} className="bg-slate-900/60 border border-cyan-500/10 p-4">
+                    <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">{label}</div>
+                    <div className={`text-2xl font-bold ${color}`}>{value}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-slate-900/60 border border-cyan-500/10 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold">Inspection Progress</span>
+                  <span className="text-xs text-slate-400">{testedCount} / {totalCount} devices tested</span>
+                </div>
+                <div className="h-2 bg-slate-800">
+                  <div
+                    className={`h-2 transition-all ${compliancePercentage > 90 ? "bg-emerald-500" : "bg-amber-500"}`}
+                    style={{ width: `${totalCount > 0 ? (testedCount / totalCount) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  onClick={() => setActivePage("map")}
+                  className="flex items-center gap-3 p-4 bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 transition-colors text-left"
+                >
+                  <MapIcon className="w-5 h-5 text-cyan-400 shrink-0" />
+                  <div>
+                    <div className="font-bold text-sm uppercase">Open Site Map</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">View floor plan and device pins</div>
+                  </div>
+                  <ArrowRight className="w-4 h-4 ml-auto text-slate-600" />
+                </button>
+                <button
+                  onClick={() => setActivePage("deficiencies")}
+                  className={`flex items-center gap-3 p-4 border text-left transition-colors ${
+                    (failedCount + warningCount) > 0
+                      ? "bg-rose-950/20 border-rose-500/20 text-rose-300 hover:bg-rose-500/10"
+                      : "bg-slate-900/40 border-cyan-500/10 text-slate-400 hover:bg-cyan-500/5"
+                  }`}
+                >
+                  <AlertTriangle className={`w-5 h-5 shrink-0 ${(failedCount + warningCount) > 0 ? "text-rose-400" : "text-slate-500"}`} />
+                  <div>
+                    <div className="font-bold text-sm uppercase">Deficiencies</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">{failedCount + warningCount} open issues</div>
+                  </div>
+                  <ArrowRight className="w-4 h-4 ml-auto text-slate-600" />
+                </button>
+              </div>
+
+              <div className="bg-slate-900/60 border border-cyan-500/10">
+                <div className="px-4 py-3 border-b border-cyan-500/10">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold">Floor Status</span>
+                </div>
+                {FLOORS.map(floor => {
+                  const floorDevices = devices.filter(d => d.floor === floor);
+                  const floorTested = floorDevices.filter(d => d.status !== "not_tested").length;
+                  const floorIssues = floorDevices.filter(d => d.status === "failed" || d.status === "deficiency").length;
+                  return (
+                    <button
+                      key={floor}
+                      onClick={() => { setActiveFloor(floor); setActivePage("map"); }}
+                      className="w-full flex items-center gap-4 px-4 py-3 border-b border-cyan-500/5 last:border-0 hover:bg-cyan-500/5 transition-colors text-left"
+                    >
+                      <span className="text-xs font-bold uppercase text-cyan-300 w-32 shrink-0">{floor}</span>
+                      <div className="flex-1 h-1.5 bg-slate-800">
+                        <div
+                          className="h-1.5 bg-cyan-500/60 transition-all"
+                          style={{ width: `${floorDevices.length > 0 ? (floorTested / floorDevices.length) * 100 : 0}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-slate-500 w-24 text-right shrink-0">{floorTested}/{floorDevices.length} tested</span>
+                      {floorIssues > 0
+                        ? <span className="text-[10px] font-bold text-rose-400 w-16 text-right shrink-0">{floorIssues} issues</span>
+                        : floorTested === floorDevices.length && floorDevices.length > 0
+                        ? <span className="text-[10px] font-bold text-emerald-400 w-16 text-right shrink-0">Clear</span>
+                        : <span className="text-[10px] text-slate-600 w-16 text-right shrink-0">Pending</span>
+                      }
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={handleResetInspection}
+                className="w-full flex items-center justify-center gap-2 py-3 border border-slate-700/50 text-slate-600 hover:text-slate-400 hover:border-slate-600 transition-colors text-[10px] uppercase font-bold"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reset Inspection Data
+              </button>
+            </div>
+          </div>
+        );
+
       case "architecture":
         return <SystemArchitectureView />;
       case "buildings":
@@ -421,7 +510,7 @@ export default function Home() {
                     placeholder="SEARCH_HARDWARE_TAG..." 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 bg-slate-900 border-cyan-500/20 text-cyan-400 placeholder:text-slate-600 rounded-none h-9 text-xs focus-visible:ring-cyan-500/50 uppercase"
+                    className="pl-9 bg-slate-900 border-cyan-500/20 text-cyan-400 placeholder:text-slate-600 rounded-none h-10 text-xs focus-visible:ring-cyan-500/50 uppercase"
                   />
                 </div>
                 
@@ -429,7 +518,7 @@ export default function Home() {
                   <select 
                     value={categoryFilter} 
                     onChange={(e) => setCategoryFilter(e.target.value)}
-                    className="bg-slate-900 border border-cyan-500/20 p-1.5 text-[10px] text-cyan-400 font-mono rounded-none uppercase focus:ring-cyan-500/30"
+                    className="bg-slate-900 border border-cyan-500/20 h-10 px-2 text-[11px] text-cyan-400 font-mono rounded-none uppercase focus:ring-cyan-500/30"
                   >
                     <option value="all">ALL_CATEGORIES</option>
                     <option value="Detection & Control">DETECTION</option>
@@ -442,16 +531,41 @@ export default function Home() {
                   <select 
                     value={statusFilter} 
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="bg-slate-900 border border-cyan-500/20 p-1.5 text-[10px] text-cyan-400 font-mono rounded-none uppercase focus:ring-cyan-500/30"
+                    className="bg-slate-900 border border-cyan-500/20 h-10 px-2 text-[11px] text-cyan-400 font-mono rounded-none uppercase focus:ring-cyan-500/30"
                   >
                     <option value="all">ALL_STATUSES</option>
                     <option value="passed">PASSED</option>
                     <option value="failed">FAILED</option>
                     <option value="deficiency">DEFICIENCY</option>
+                    <option value="attention_required">ATTENTION_REQUIRED</option>
+                    <option value="no_access">NO_ACCESS</option>
                     <option value="not_tested">PENDING</option>
                   </select>
                 </div>
               </div>
+
+              {/* Floor Progress Counter + Bulk Pass */}
+              {(() => {
+                const floorDevices = devices.filter(d => d.floor === activeFloor);
+                const testedCount = floorDevices.filter(d => d.status !== "not_tested").length;
+                const untestedCount = floorDevices.filter(d => d.status === "not_tested").length;
+                return (
+                  <div className="border border-cyan-500/10 bg-slate-900/40">
+                    <div className="flex items-center justify-between px-3 py-2">
+                      <span className="font-bold uppercase tracking-wider text-cyan-300 truncate">{activeFloor}</span>
+                      <span className="text-slate-500 shrink-0 ml-2">{testedCount} / {floorDevices.length} TESTED</span>
+                    </div>
+                    {untestedCount > 0 && (
+                      <button
+                        onClick={() => handleBulkFloorPass(activeFloor)}
+                        className="w-full px-3 py-1.5 border-t border-cyan-500/10 text-[10px] font-bold text-emerald-400/70 hover:text-emerald-400 hover:bg-emerald-500/5 transition-colors text-left uppercase"
+                      >
+                        ✓ Pass all {untestedCount} untested on this floor
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Devices List */}
               <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
@@ -462,20 +576,12 @@ export default function Home() {
                     const matchesStatus = statusFilter === "all" || d.status === statusFilter;
                     const matchesFloor = d.floor === activeFloor;
 
-                    // Government Emergency Filter
-                    if (activeRole === "government") {
-                      const isEmergency = [
-                        "Fire Alarm Panel", "Annunciator", "FDC", "Sprinkler Riser",
-                        "Lockbox", "Roof Access", "Electrical Shutoff", "Gas Shutoff", "Standpipe", "Smoke Control Panel"
-                      ].includes(d.type);
-                      return matchesSearch && matchesCat && matchesStatus && matchesFloor && isEmergency;
-                    }
-
                     return matchesSearch && matchesCat && matchesStatus && matchesFloor;
                   })
                   .map((dev) => (
                     <button
                       key={dev.id}
+                      ref={(el) => { deviceListItemRefs.current[dev.id] = el; }}
                       onClick={() => setSelectedDeviceId(dev.id)}
                       className={`w-full p-2.5 border text-left flex items-center justify-between gap-3 transition-colors ${
                         selectedDeviceId === dev.id 
@@ -493,6 +599,7 @@ export default function Home() {
                           dev.status === "passed" ? "bg-emerald-500" :
                           dev.status === "failed" ? "bg-rose-500 animate-pulse" :
                           dev.status === "deficiency" ? "bg-amber-500" :
+                          dev.status === "attention_required" ? "bg-fuchsia-500 animate-pulse" :
                           dev.status === "testing" ? "bg-cyan-500 animate-pulse" :
                           "bg-slate-700"
                         }`} />
@@ -509,32 +616,42 @@ export default function Home() {
               onSelectDevice={(id) => setSelectedDeviceId(id)}
               activeFloor={activeFloor}
               activeRole={activeRole}
-              theme={theme}
+              theme="dark"
             />
 
             {/* Device Detail Panel */}
-            <DeviceDetailPanel 
+            <DeviceDetailPanel
               device={devices.find(d => d.id === selectedDeviceId) || null}
               onClose={() => setSelectedDeviceId(null)}
               onUpdateStatus={handleUpdateDeviceStatus}
               onTriggerDeficiencyModal={handleTriggerDeficiencyModal}
+              onUpdateTechnicianNotes={handleUpdateTechnicianNotes}
               activeRole={activeRole}
             />
           </div>
         );
       case "deficiencies":
         return (
-          <DeficienciesView 
-            devices={devices} 
+          <DeficienciesView
+            devices={devices}
             onSelectDevice={(id) => {
               setSelectedDeviceId(id);
               setActivePage("map");
             }}
+            onResolveDeficiency={handleResolveDeficiency}
+            onEditDeficiency={(deviceId, deficiency) => setEditingDeficiency({ deviceId, deficiency })}
             activeRole={activeRole}
           />
         );
       case "reports":
-        return <ReportsView reports={reports} activeRole={activeRole} />;
+        return (
+          <ReportsView
+            reports={reports}
+            activeRole={activeRole}
+            onAddReport={handleGenerateReport}
+            onViewReport={(report) => setViewingReport(report)}
+          />
+        );
       case "quotes":
         return <QuotesView quotes={quotes} onApproveQuote={handleApproveQuote} activeRole={activeRole} />;
       case "sharing":
@@ -550,10 +667,9 @@ export default function Home() {
           <CustomersView 
             onOpenCustomerPortal={(custName) => {
               addLog(`PORTAL_SIM // SIMULATING CUSTOMER ACCESS PORTAL: ${custName.toUpperCase()}`);
-              setActiveRole("property_manager");
               setActivePage("buildings");
               toast.success("CUSTOMER PORTAL ACTIVE", {
-                description: `Switched view role to Property Manager for Harbour View Property Management.`
+                description: `Opened the Buildings view for ${custName}.`
               });
             }} 
           />
@@ -580,325 +696,131 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#050814] text-cyan-400 font-mono selection:bg-cyan-500/20 selection:text-cyan-300">
+    <div className="min-h-screen flex flex-col bg-[#050814] text-slate-300 font-mono selection:bg-cyan-500/20 selection:text-cyan-300">
       
-      {/* Top Header Panel */}
-      <header className="h-16 border-b border-cyan-500/20 bg-slate-950/90 backdrop-blur-md px-6 flex items-center justify-between z-30 shrink-0">
-        
-        {/* Left: Branding & Portfolio Switcher */}
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-cyan-950 border border-cyan-500/40 rounded-none shadow-[0_0_10px_rgba(6,182,212,0.3)] animate-pulse">
-              <Shield className="w-5 h-5 text-cyan-400" />
-            </div>
-            <div>
-              <h1 className="text-sm font-bold tracking-widest text-cyan-300 uppercase leading-none">INSPECTRA_VISUAL</h1>
-              <span className="text-[9px] text-slate-500 tracking-wider uppercase font-bold mt-1 block">LIFE-SAFETY_MAPPING_OS</span>
-            </div>
+      {/* Header */}
+      <header className="h-14 border-b border-cyan-500/20 bg-slate-950/90 backdrop-blur-md px-5 flex items-center justify-between z-30 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="p-1.5 bg-cyan-950 border border-cyan-500/40">
+            <Shield className="w-4 h-4 text-cyan-400" />
           </div>
-
-          {/* Building Portfolio Badge */}
-          <div className="h-8 w-px bg-cyan-500/10 hidden sm:block" />
-          <div className="hidden sm:flex items-center gap-2 bg-slate-900/50 border border-cyan-500/10 px-3 py-1.5">
-            <Building className="w-4 h-4 text-cyan-500" />
-            <div className="text-left">
-              <span className="text-[8px] text-slate-500 uppercase leading-none font-bold block">ACTIVE_BUILDING:</span>
-              <span className="text-[10px] text-cyan-300 font-bold uppercase leading-none">HARBOUR VIEW APARTMENTS</span>
-            </div>
-          </div>
+          <span className="text-sm font-bold tracking-widest text-cyan-300 uppercase hidden sm:block">Inspectra</span>
         </div>
 
-        {/* Center-Right: Quick Counters */}
-        <div className="hidden lg:flex items-center gap-4 text-[10px]">
-          <div className="bg-slate-900/30 border border-cyan-500/10 px-3 py-1 text-center min-w-[80px]">
-            <span className="text-slate-500 text-[8px] uppercase font-bold block">DEVICES</span>
-            <span className="text-cyan-300 font-bold text-sm">{totalCount}</span>
-          </div>
-          <div className="bg-slate-900/30 border border-cyan-500/10 px-3 py-1 text-center min-w-[80px]">
-            <span className="text-slate-500 text-[8px] uppercase font-bold block">TESTED</span>
-            <span className="text-cyan-300 font-bold text-sm">{testedCount}</span>
-          </div>
-          <div className="bg-slate-900/30 border border-cyan-500/10 px-3 py-1 text-center min-w-[80px]">
-            <span className="text-slate-500 text-[8px] uppercase font-bold block">COMPLIANCE</span>
-            <span className={`font-bold text-sm ${compliancePercentage > 90 ? 'text-emerald-400' : 'text-amber-400'}`}>
+        <div className="flex items-center gap-2">
+          <Building className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+          <span className="text-xs font-bold text-cyan-300 uppercase">Harbour View Apartments</span>
+          {activePage === "map" && (
+            <>
+              <span className="text-slate-600 mx-0.5">/</span>
+              <select
+                value={activeFloor}
+                onChange={(e) => setActiveFloor(e.target.value)}
+                className="bg-slate-900 border border-cyan-500/20 h-10 px-2.5 text-xs text-cyan-400 font-mono rounded-none focus:outline-none focus:border-cyan-500/60"
+              >
+                {FLOORS.map(f => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </>
+          )}
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-1.5">
+            <span className="text-[10px] text-slate-500 uppercase font-bold">Compliance:</span>
+            <span className={`text-sm font-bold ${compliancePercentage > 90 ? "text-emerald-400" : "text-amber-400"}`}>
               {compliancePercentage}%
             </span>
           </div>
-        </div>
-
-        {/* Right Side: Role Selector, Floor dropdown, Theme, Sweep */}
-        <div className="flex items-center gap-3">
-          
-          {/* Floor selector (only visible on map view) */}
-          {activePage === "map" && (
-            <select 
-              value={activeFloor} 
-              onChange={(e) => setActiveFloor(e.target.value)}
-              className="bg-slate-900 border border-cyan-500/30 px-3 py-1.5 text-xs text-cyan-400 font-mono rounded-none uppercase focus:ring-cyan-500/40"
-            >
-              {FLOORS.map(f => <option key={f} value={f}>{f.toUpperCase()}</option>)}
-            </select>
+          {(failedCount + warningCount) > 0 && (
+            <div className="flex items-center gap-1">
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+              <span className="text-sm font-bold text-rose-400">{failedCount + warningCount}</span>
+            </div>
           )}
-
-          {/* Role selector dropdown */}
-          <div className="flex items-center gap-1.5 bg-slate-900/50 border border-cyan-500/20 px-2 py-1.5">
-            <User className="w-3.5 h-3.5 text-cyan-500" />
-            <select 
-              value={activeRole} 
-              onChange={(e) => {
-                setActiveRole(e.target.value);
-                addLog(`ROLE_CHANGED // SWITCHED TO: ${e.target.value.toUpperCase()}`);
-                toast.info("ROLE SWITCHED", { description: `Operating as ${e.target.value.replace("_", " ")}.` });
-              }}
-              className="bg-transparent border-none text-[10px] text-cyan-400 font-mono rounded-none uppercase focus:ring-0 focus-visible:ring-0 p-0"
-            >
-              <option value="fire_company">Fire Company</option>
-              <option value="property_manager">Property Manager</option>
-              <option value="government">Government / FD</option>
-            </select>
+          <div className="h-7 w-7 bg-slate-800 border border-slate-700 flex items-center justify-center">
+            <User className="w-4 h-4 text-slate-400" />
           </div>
-
-          {/* Theme toggle */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setTheme(prev => prev === "light" ? "dark" : "light")}
-            className="h-9 w-9 rounded-none border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/10"
-          >
-            {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-          </Button>
-
-          {/* Sweep Trigger (only visible on map view for fire_company) */}
-          {activePage === "map" && activeRole === "fire_company" && (
-            <Button 
-              onClick={() => setIsSimulating(!isSimulating)}
-              className={`h-9 rounded-none text-xs font-bold px-4 flex items-center gap-2 ${
-                isSimulating 
-                  ? "bg-rose-950/60 hover:bg-rose-900 border border-rose-500 text-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.3)] animate-pulse" 
-                  : "bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-500 text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.3)]"
-              }`}
-            >
-              {isSimulating ? <Square className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-              <span>{isSimulating ? "STOP_SWEEP" : "RUN_SWEEP"}</span>
-            </Button>
-          )}
-
-          {/* Master Reset Button */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={handleResetSimulation}
-            className="h-9 w-9 rounded-none border border-cyan-500/20 text-slate-500 hover:text-cyan-400 hover:bg-cyan-500/10"
-            title="Reset Simulation Data"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </Button>
         </div>
       </header>
 
-      {/* Main Workspace Grid */}
-      <div className="flex-1 flex min-h-0 relative">
+      {/* Main Workspace */}
+      <div className="flex-1 flex min-h-0">
         
         {/* Navigation Sidebar */}
-        <aside className="w-16 border-r border-cyan-500/20 bg-slate-950/95 flex flex-col items-center py-4 gap-3 z-20 shrink-0 overflow-y-auto">
-          
-          {/* Standard Navigation */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setActivePage("buildings")}
-            className={`h-10 w-10 rounded-none border ${activePage === "buildings" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-            title="Buildings Portfolio"
-          >
-            <Building className="w-5 h-5" />
-          </Button>
-
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setActivePage("map")}
-            className={`h-10 w-10 rounded-none border ${activePage === "map" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-            title="Visual Site Map"
-          >
-            <MapIcon className="w-5 h-5" />
-          </Button>
-
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setActivePage("deficiencies")}
-            className={`h-10 w-10 rounded-none border ${activePage === "deficiencies" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-            title="Deficiencies Registry"
-          >
-            <AlertTriangle className="w-5 h-5" />
-          </Button>
-
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setActivePage("reports")}
-            className={`h-10 w-10 rounded-none border ${activePage === "reports" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-            title="Compliance Reports"
-          >
-            <FileText className="w-5 h-5" />
-          </Button>
-
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setActivePage("quotes")}
-            className={`h-10 w-10 rounded-none border ${activePage === "quotes" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-            title="Repair Quotes"
-          >
-            <DollarSign className="w-5 h-5" />
-          </Button>
-
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setActivePage("sharing")}
-            className={`h-10 w-10 rounded-none border ${activePage === "sharing" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-            title="Municipal Data Sharing"
-          >
-            <ShieldCheck className="w-5 h-5" />
-          </Button>
-
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setActivePage("setup")}
-            className={`h-10 w-10 rounded-none border ${activePage === "setup" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-            title="Setup/Onboarding Wizard"
-          >
-            <Settings className="w-5 h-5" />
-          </Button>
-
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setActivePage("architecture")}
-            className={`h-10 w-10 rounded-none border ${activePage === "architecture" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-            title="System Architecture & Database Schema"
-          >
-            <Cpu className="w-5 h-5" />
-          </Button>
-
-          {/* FIRE COMPANY SPECIFIC NAVIGATION SEPARATOR */}
-          {activeRole === "fire_company" && (
-            <>
-              <div className="w-8 h-px bg-cyan-500/10 my-1" />
-              
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setActivePage("company")}
-                className={`h-10 w-10 rounded-none border ${activePage === "company" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-                title="Company Profile & Team"
-              >
-                <Users2 className="w-5 h-5" />
-              </Button>
-
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setActivePage("customers")}
-                className={`h-10 w-10 rounded-none border ${activePage === "customers" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-                title="Client Management"
-              >
-                <Users className="w-5 h-5" />
-              </Button>
-
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setActivePage("technicians")}
-                className={`h-10 w-10 rounded-none border ${activePage === "technicians" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-                title="Technician Metrics"
-              >
-                <ClipboardList className="w-5 h-5" />
-              </Button>
-
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setActivePage("templates")}
-                className={`h-10 w-10 rounded-none border ${activePage === "templates" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-                title="Inspection Checklists"
-              >
-                <FileText className="w-5 h-5 text-cyan-500/80" />
-              </Button>
-
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setActivePage("library")}
-                className={`h-10 w-10 rounded-none border ${activePage === "library" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-                title="Device Library"
-              >
-                <Library className="w-5 h-5" />
-              </Button>
-
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setActivePage("deficiency-lang")}
-                className={`h-10 w-10 rounded-none border ${activePage === "deficiency-lang" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-                title="Deficiency Language Library"
-              >
-                <FileCode className="w-5 h-5" />
-              </Button>
-
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setActivePage("import")}
-                className={`h-10 w-10 rounded-none border ${activePage === "import" ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}
-                title="CSV Bulk Device Import"
-              >
-                <Database className="w-5 h-5" />
-              </Button>
-            </>
-          )}
+        <aside className="w-52 border-r border-cyan-500/20 bg-slate-950/95 flex flex-col z-20 shrink-0 select-none">
+          <nav className="flex-1 py-2">
+            {([
+              { page: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
+              { page: "buildings", icon: Building, label: "Buildings" },
+              { page: "map", icon: MapIcon, label: "Site Map" },
+              { page: "deficiencies", icon: AlertTriangle, label: "Deficiencies" },
+              { page: "reports", icon: FileText, label: "Reports" },
+            ] as { page: string; icon: React.ElementType; label: string }[]).map(({ page, icon: Icon, label }) => {
+              const badge =
+                page === "deficiencies" && failedCount + warningCount > 0
+                  ? failedCount + warningCount
+                  : undefined;
+              return (
+                <button
+                  key={page}
+                  onClick={() => setActivePage(page)}
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 text-sm transition-colors ${
+                    activePage === page
+                      ? "bg-cyan-500/10 text-cyan-300 border-r-2 border-cyan-500"
+                      : "text-slate-500 hover:text-cyan-400 hover:bg-cyan-500/5 border-r-2 border-transparent"
+                  }`}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  <span className="font-medium">{label}</span>
+                  {badge !== undefined && (
+                    <span className="ml-auto text-[10px] bg-rose-500/20 text-rose-400 border border-rose-500/30 px-1.5 py-0.5 font-bold">
+                      {badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+          <div className="px-4 py-3 border-t border-cyan-500/10">
+            <div className="text-[9px] text-slate-600 uppercase tracking-widest">v0.1 — MVP Preview</div>
+          </div>
         </aside>
 
-        {/* Dynamic View Workspace Content */}
+        {/* Page content */}
         {renderActivePageContent()}
       </div>
 
-      {/* Scrolling Command-Line Telemetry Feed Footer */}
-      <footer className="h-16 border-t border-cyan-500/20 bg-slate-950/95 px-6 flex items-center gap-4 shrink-0 font-mono text-[10px] z-30">
-        <span className="text-slate-500 font-bold uppercase shrink-0">TELEMETRY_LOGS //</span>
-        <div ref={terminalLogRef} className="flex-1 h-10 overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-cyan-500/20">
-          {terminalLogs.map((log, i) => (
-            <div key={i} className="text-cyan-500/80 leading-relaxed uppercase">{log}</div>
-          ))}
-        </div>
-      </footer>
-
-      {/* DEFICIENCY INPUT MODAL */}
-      <DeficiencyModal 
+      {/* Deficiency Modal — create mode */}
+      <DeficiencyModal
         isOpen={isDeficiencyModalOpen}
         onClose={() => setIsDeficiencyModalOpen(false)}
         isFailure={deficiencyModalIsFailure}
         onSubmit={handleAddDeficiency}
       />
 
-      {/* INTERACTIVE WALKTHROUGH PANEL */}
-      <DemoWalkthrough 
-        currentStep={walkthroughStep}
-        onSetStep={setWalkthroughStep}
-        completed={walkthroughCompleted}
-        onSetCompleted={setWalkthroughCompleted}
-        activeRole={activeRole}
-        onSetRole={setActiveRole}
-        activePage={activePage}
-        onSetPage={setActivePage}
+      {/* Deficiency Modal — edit mode */}
+      <DeficiencyModal
+        isOpen={!!editingDeficiency}
+        onClose={() => setEditingDeficiency(null)}
+        isFailure={false}
+        initialData={editingDeficiency ? {
+          priority: editingDeficiency.deficiency.priority,
+          description: editingDeficiency.deficiency.description,
+          nfpaCode: editingDeficiency.deficiency.nfpaCode ?? "",
+          recommendedRepair: editingDeficiency.deficiency.recommendedRepair,
+          photoUrl: editingDeficiency.deficiency.photoUrl
+        } : undefined}
+        onSubmit={(updates) => {
+          if (!editingDeficiency) return;
+          handleUpdateDeficiency(editingDeficiency.deviceId, editingDeficiency.deficiency.id, updates);
+          setEditingDeficiency(null);
+        }}
+      />
+
+      <ReportPreviewModal
+        report={viewingReport}
         devices={devices}
-        selectedDeviceId={selectedDeviceId}
-        onSelectDevice={setSelectedDeviceId}
-        activeFloor={activeFloor}
-        onSetFloor={setActiveFloor}
-        quotes={quotes}
+        onClose={() => setViewingReport(null)}
       />
     </div>
   );

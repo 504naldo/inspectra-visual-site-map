@@ -3,28 +3,28 @@ import { Device, DeficiencyHistory } from "@/lib/mock-data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, ShieldAlert, CheckCircle, ExternalLink, ArrowUpRight, HelpCircle } from "lucide-react";
-import { toast } from "sonner";
+import { AlertTriangle, CheckCircle, ArrowUpRight, Check, Pencil } from "lucide-react";
 
 interface DeficienciesViewProps {
   devices: Device[];
   onSelectDevice?: (deviceId: string) => void;
+  onResolveDeficiency?: (deviceId: string, deficiencyId: string) => void;
+  onEditDeficiency?: (deviceId: string, deficiency: DeficiencyHistory) => void;
   activeRole: string;
 }
 
-export default function DeficienciesView({ devices, onSelectDevice, activeRole }: DeficienciesViewProps) {
-  
-  // Extract all deficiencies from all devices
-  const loggedDeficiencies = devices.flatMap((dev) => {
-    return (dev.deficiencyHistory || []).map((def) => ({
+export default function DeficienciesView({ devices, onSelectDevice, onResolveDeficiency, onEditDeficiency, activeRole }: DeficienciesViewProps) {
+
+  const loggedDeficiencies = devices.flatMap((dev) =>
+    (dev.deficiencyHistory || []).map((def) => ({
       ...def,
       deviceId: dev.id,
       deviceLabel: dev.label,
       deviceType: dev.type,
       deviceFloor: dev.floor,
       deviceArea: dev.area
-    }));
-  });
+    }))
+  );
 
   const getPriorityBadge = (priority: DeficiencyHistory["priority"]) => {
     switch (priority) {
@@ -37,12 +37,6 @@ export default function DeficienciesView({ devices, onSelectDevice, activeRole }
       case "critical":
         return <Badge className="bg-rose-950/50 text-rose-400 border-rose-500/30 rounded-none text-[9px] font-bold animate-pulse">CRITICAL</Badge>;
     }
-  };
-
-  const handleResolveDeficiency = (deviceId: string, description: string) => {
-    toast.info("SERVICE ORDER DISPATCHED", {
-      description: `DISPATCHED REPAIR FOR: ${description.toUpperCase()}`
-    });
   };
 
   return (
@@ -85,9 +79,9 @@ export default function DeficienciesView({ devices, onSelectDevice, activeRole }
                     </div>
                     <div className="text-[9px] text-slate-500 uppercase mt-0.5">{def.deviceFloor} // {def.deviceArea}</div>
                   </TableCell>
-                  <TableCell className="text-slate-300 max-w-xs">{def.description.toUpperCase()}</TableCell>
+                  <TableCell className="text-slate-300 max-w-xs whitespace-normal break-words leading-relaxed">{def.description.toUpperCase()}</TableCell>
                   <TableCell>{getPriorityBadge(def.priority)}</TableCell>
-                  <TableCell className="text-slate-400 text-[10px] max-w-xs">{def.recommendedRepair.toUpperCase()}</TableCell>
+                  <TableCell className="text-slate-400 text-[10px] max-w-xs whitespace-normal break-words leading-relaxed">{def.recommendedRepair.toUpperCase()}</TableCell>
                   <TableCell className="text-slate-400">{def.loggedAt}</TableCell>
                   <TableCell>
                     {def.resolved ? (
@@ -99,24 +93,36 @@ export default function DeficienciesView({ devices, onSelectDevice, activeRole }
                   <TableCell className="text-right py-2">
                     <div className="flex items-center justify-end gap-1.5">
                       {onSelectDevice && (
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => onSelectDevice(def.deviceId)}
-                          className="h-7 w-7 rounded-none text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10" 
+                          className="h-10 w-10 rounded-none text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10"
                           title="Locate Node on Blueprint"
                         >
-                          <ArrowUpRight className="w-3.5 h-3.5" />
+                          <ArrowUpRight className="w-4 h-4" />
                         </Button>
                       )}
-                      
-                      {activeRole === "fire_company" && !def.resolved && (
-                        <Button 
-                          variant="outline" 
-                          onClick={() => handleResolveDeficiency(def.deviceId, def.description)}
-                          className="h-7 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 rounded-none text-[9px] font-bold px-2"
+
+                      {activeRole === "fire_company" && !def.resolved && onEditDeficiency && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => onEditDeficiency(def.deviceId, def)}
+                          className="h-10 w-10 rounded-none text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10"
+                          title="Edit Deficiency"
                         >
-                          DISPATCH_REPAIR
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                      )}
+
+                      {activeRole === "fire_company" && !def.resolved && onResolveDeficiency && (
+                        <Button
+                          variant="outline"
+                          onClick={() => onResolveDeficiency(def.deviceId, def.id)}
+                          className="h-10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 rounded-none text-[10px] font-bold px-3 flex items-center gap-1.5"
+                        >
+                          <Check className="w-3.5 h-3.5" /> MARK_RESOLVED
                         </Button>
                       )}
                     </div>

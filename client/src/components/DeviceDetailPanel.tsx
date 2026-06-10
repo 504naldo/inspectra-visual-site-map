@@ -1,11 +1,12 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Device, DeviceStatus, DeviceType } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Flame, Shield, Radio, Droplets, Waves, ShieldAlert, Compass, 
-  ArrowRight, Key, HelpCircle, Check, X, Eye, EyeOff, Camera, Clock, QrCode
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Flame, Shield, Radio, Droplets, Waves, ShieldAlert, Compass,
+  ArrowRight, Key, HelpCircle, Check, X, Eye, EyeOff, Camera, Clock, QrCode, Pencil
 } from "lucide-react";
 
 interface DeviceDetailPanelProps {
@@ -13,7 +14,8 @@ interface DeviceDetailPanelProps {
   onClose: () => void;
   onUpdateStatus: (deviceId: string, status: DeviceStatus) => void;
   onTriggerDeficiencyModal: (isFailure: boolean) => void;
-  activeRole: string; // "fire_company" | "property_manager" | "government"
+  onUpdateTechnicianNotes: (deviceId: string, notes: string) => void;
+  activeRole: string;
 }
 
 export default function DeviceDetailPanel({
@@ -21,9 +23,25 @@ export default function DeviceDetailPanel({
   onClose,
   onUpdateStatus,
   onTriggerDeficiencyModal,
+  onUpdateTechnicianNotes,
   activeRole
 }: DeviceDetailPanelProps) {
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [draftNotes, setDraftNotes] = useState("");
+
+  // Reset edit state whenever the selected device changes
+  useEffect(() => {
+    setIsEditingNotes(false);
+    setDraftNotes(device?.technicianNotes ?? "");
+  }, [device?.id]);
   if (!device) return null;
+
+  // Count of unresolved deficiencies logged against this device
+  const deficiencyCount = device.deficiencyHistory
+    ? device.deficiencyHistory.filter(d => !d.resolved).length
+    : (device.status === "failed" || device.status === "deficiency" || device.status === "attention_required") && device.deficiencyNote
+      ? 1
+      : 0;
 
   // Local helper for icon rendering
   const renderDeviceIcon = (type: DeviceType, className = "w-5 h-5") => {
@@ -74,28 +92,49 @@ export default function DeviceDetailPanel({
         return <Badge className="bg-cyan-950/50 text-cyan-400 border-cyan-500/30 rounded-none text-[9px] font-bold animate-pulse">TESTING</Badge>;
       case "no_access":
         return <Badge className="bg-slate-900 text-slate-400 border-slate-700 rounded-none text-[9px] font-bold">NO_ACCESS</Badge>;
+      case "attention_required":
+        return <Badge className="bg-fuchsia-950/50 text-fuchsia-400 border-fuchsia-500/30 rounded-none text-[9px] font-bold animate-pulse">ATTENTION_REQUIRED</Badge>;
       default:
         return <Badge className="bg-slate-950 text-slate-500 border-slate-800 rounded-none text-[9px] font-bold">NOT_TESTED</Badge>;
     }
   };
 
   return (
-    <div className="w-80 border-l border-cyan-500/20 bg-slate-950/95 p-4 flex flex-col h-full overflow-y-auto font-mono text-xs text-cyan-400 gap-4">
+    <div
+      className="
+        fixed inset-x-0 bottom-0 z-30 max-h-[75vh] rounded-t-lg border-t
+        lg:static lg:inset-auto lg:z-auto lg:max-h-none lg:h-full lg:w-80 lg:rounded-none lg:border-t-0 lg:border-l
+        border-cyan-500/20 bg-slate-950/95 p-4 flex flex-col overflow-y-auto font-mono text-xs text-cyan-400 gap-4
+        shadow-[0_-10px_30px_rgba(0,0,0,0.5)] lg:shadow-none
+      "
+    >
+      {/* Drag handle (mobile/tablet bottom-sheet affordance) */}
+      <div className="lg:hidden -mt-1 mb-1 flex justify-center">
+        <div className="w-10 h-1 rounded-full bg-cyan-500/20" />
+      </div>
+
       {/* Panel Header */}
       <div className="flex items-center justify-between border-b border-cyan-500/10 pb-3">
         <span className="font-bold text-slate-500 text-[10px] tracking-widest uppercase">DEVICE_DETAILS // {device.id}</span>
-        <button onClick={onClose} className="text-slate-500 hover:text-cyan-400 text-sm font-bold">[X]</button>
+        <button onClick={onClose} className="text-slate-500 hover:text-cyan-400 text-sm font-bold w-9 h-9 flex items-center justify-center -mr-1.5">[X]</button>
       </div>
 
       {/* Main Metadata */}
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-3 shrink-0">
         <div className="p-2.5 bg-cyan-950/40 border border-cyan-500/20 text-cyan-400">
           {renderDeviceIcon(device.type, "w-6 h-6")}
         </div>
         <div className="space-y-1">
           <h3 className="font-bold text-cyan-300 text-sm uppercase leading-tight">{device.label}</h3>
           <p className="text-[10px] text-slate-500 uppercase">{device.type}</p>
-          <div className="pt-1">{getStatusBadge(device.status)}</div>
+          <div className="pt-1 flex items-center gap-1.5 flex-wrap">
+            {getStatusBadge(device.status)}
+            {deficiencyCount > 0 && (
+              <Badge className="bg-rose-950/50 text-rose-400 border-rose-500/30 rounded-none text-[9px] font-bold">
+                {deficiencyCount} OPEN DEFICIENC{deficiencyCount === 1 ? "Y" : "IES"}
+              </Badge>
+            )}
+          </div>
         </div>
       </div>
 
@@ -111,15 +150,23 @@ export default function DeviceDetailPanel({
           <span className="text-[9px] text-slate-500 uppercase font-bold">SPECIFIC_LOCATION:</span>
           <p className="text-cyan-300 mt-0.5">{device.location.toUpperCase()}</p>
         </div>
-        <div className="flex items-center gap-4 text-[10px]">
-          <div>
-            <span className="text-[9px] text-slate-500 uppercase font-bold">X_COORD:</span>
-            <span className="text-cyan-300 font-bold ml-1">{device.x}%</span>
-          </div>
-          <div>
-            <span className="text-[9px] text-slate-500 uppercase font-bold">Y_COORD:</span>
-            <span className="text-cyan-300 font-bold ml-1">{device.y}%</span>
-          </div>
+      </div>
+
+      <Separator className="bg-cyan-500/10" />
+
+      {/* Last Tested Summary (prominent) */}
+      <div className="flex items-center gap-2.5 bg-slate-900/40 border border-cyan-500/10 p-2.5">
+        <Clock className="w-4 h-4 text-cyan-500/70 shrink-0" />
+        <div className="min-w-0">
+          <span className="text-[9px] text-slate-500 uppercase font-bold block">LAST_TESTED:</span>
+          {device.lastTestedAt ? (
+            <p className="text-cyan-300 font-bold truncate">
+              {new Date(device.lastTestedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+              {device.lastTestedBy && <span className="text-slate-400 font-normal"> &middot; {device.lastTestedBy.toUpperCase()}</span>}
+            </p>
+          ) : (
+            <p className="text-slate-500 font-bold uppercase">NEVER TESTED</p>
+          )}
         </div>
       </div>
 
@@ -139,17 +186,56 @@ export default function DeviceDetailPanel({
           </p>
         </div>
 
-        {/* Technician-Only Notes (Hidden in Gov Mode or Client Mode if configured) */}
+        {/* Technician-Only Notes — editable for fire_company role */}
         {activeRole === "fire_company" && (
           <div className="space-y-1">
             <div className="flex items-center gap-1.5 text-[9px] text-rose-400/80 font-bold">
               <EyeOff className="w-3.5 h-3.5 text-rose-500" />
               <span>TECHNICIAN_INTERNAL_NOTES</span>
               <Badge className="bg-rose-950/20 text-rose-400 border-rose-500/10 text-[8px] scale-90 py-0 px-1 rounded-none font-bold">INTERNAL_ONLY</Badge>
+              {!isEditingNotes && (
+                <button
+                  onClick={() => { setDraftNotes(device.technicianNotes ?? ""); setIsEditingNotes(true); }}
+                  className="ml-auto text-slate-600 hover:text-cyan-400 transition-colors"
+                  title="Edit notes"
+                >
+                  <Pencil className="w-3 h-3" />
+                </button>
+              )}
             </div>
-            <p className="text-rose-300/90 text-[10px] bg-rose-950/10 p-2 border border-rose-500/10 leading-relaxed uppercase">
-              {device.technicianNotes || "NO INTERNAL TECHNICIAN TELEMETRY LOGGED."}
-            </p>
+            {isEditingNotes ? (
+              <div className="space-y-1.5">
+                <Textarea
+                  value={draftNotes}
+                  onChange={(e) => setDraftNotes(e.target.value)}
+                  className="bg-rose-950/10 border-rose-500/20 text-rose-300 rounded-none text-[10px] uppercase resize-none"
+                  rows={3}
+                  autoFocus
+                  placeholder="ADD TECHNICIAN NOTE..."
+                />
+                <div className="flex gap-1.5">
+                  <Button
+                    size="sm"
+                    onClick={() => { onUpdateTechnicianNotes(device.id, draftNotes); setIsEditingNotes(false); }}
+                    className="h-8 rounded-none bg-cyan-950 border border-cyan-500/40 text-cyan-400 hover:bg-cyan-900 text-[10px] font-bold px-3 flex items-center gap-1"
+                  >
+                    <Check className="w-3 h-3" /> SAVE
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setIsEditingNotes(false)}
+                    className="h-8 rounded-none border border-slate-700 text-slate-500 hover:text-cyan-400 text-[10px] font-bold px-3"
+                  >
+                    CANCEL
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-rose-300/90 text-[10px] bg-rose-950/10 p-2 border border-rose-500/10 leading-relaxed uppercase">
+                {device.technicianNotes || "NO INTERNAL TECHNICIAN TELEMETRY LOGGED."}
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -210,14 +296,14 @@ export default function DeviceDetailPanel({
           <div className="grid grid-cols-2 gap-2">
             <Button 
               onClick={() => onUpdateStatus(device.id, "passed")}
-              className="bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-500/40 text-emerald-400 rounded-none text-[10px] font-bold h-8 flex items-center gap-1"
+              className="bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-500/40 text-emerald-400 rounded-none text-[11px] font-bold h-12 flex items-center justify-center gap-1.5"
             >
               <Check className="w-3.5 h-3.5" /> MARK_PASS
             </Button>
             
             <Button 
               onClick={() => onTriggerDeficiencyModal(true)}
-              className="bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/40 text-rose-400 rounded-none text-[10px] font-bold h-8 flex items-center gap-1"
+              className="bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/40 text-rose-400 rounded-none text-[11px] font-bold h-12 flex items-center justify-center gap-1.5"
             >
               <X className="w-3.5 h-3.5" /> MARK_FAIL
             </Button>
@@ -226,23 +312,30 @@ export default function DeviceDetailPanel({
           <div className="grid grid-cols-2 gap-2">
             <Button 
               onClick={() => onTriggerDeficiencyModal(false)}
-              className="bg-amber-950/40 hover:bg-amber-900/60 border border-amber-500/40 text-amber-400 rounded-none text-[10px] font-bold h-8 flex items-center gap-1"
+              className="bg-amber-950/40 hover:bg-amber-900/60 border border-amber-500/40 text-amber-400 rounded-none text-[11px] font-bold h-12 flex items-center justify-center gap-1.5"
             >
               <X className="w-3.5 h-3.5" /> DEFICIENCY
             </Button>
 
             <Button 
               onClick={() => onUpdateStatus(device.id, "no_access")}
-              className="bg-slate-900 hover:bg-slate-850 border border-slate-700 text-slate-400 rounded-none text-[10px] font-bold h-8 flex items-center gap-1"
+              className="bg-slate-900 hover:bg-slate-850 border border-slate-700 text-slate-400 rounded-none text-[11px] font-bold h-12 flex items-center justify-center gap-1.5"
             >
               <EyeOff className="w-3.5 h-3.5" /> NO_ACCESS
             </Button>
           </div>
 
-          <Button 
+          <Button
+            onClick={() => onUpdateStatus(device.id, "attention_required")}
+            className="w-full bg-fuchsia-950/40 hover:bg-fuchsia-900/60 border border-fuchsia-500/40 text-fuchsia-400 rounded-none text-[11px] font-bold h-12 flex items-center justify-center gap-1.5"
+          >
+            <Eye className="w-3.5 h-3.5" /> ATTENTION_REQUIRED
+          </Button>
+
+          <Button
             onClick={() => onUpdateStatus(device.id, "not_tested")}
             variant="ghost"
-            className="w-full border border-cyan-500/10 text-slate-500 hover:text-cyan-400 hover:bg-cyan-500/5 rounded-none text-[10px] font-bold h-8"
+            className="w-full border border-cyan-500/10 text-slate-500 hover:text-cyan-400 hover:bg-cyan-500/5 rounded-none text-[11px] font-bold h-12"
           >
             RESET_TO_NOT_TESTED
           </Button>
