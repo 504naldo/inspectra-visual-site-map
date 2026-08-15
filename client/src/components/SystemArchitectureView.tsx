@@ -983,11 +983,14 @@ generator client {
       return schema;
     }
 
-    // Default to SQL DDL
-    let schema = `CREATE EXTENSION IF NOT EXISTS "uuid-ossp";\n`;
+    // Default to SQL DDL with UP / DOWN Migration Blocks
+    let schema = `-- ==========================================\n`;
+    schema += `-- MIGRATION UP (FORWARD SCRIPT)\n`;
+    schema += `-- ==========================================\n`;
+    schema += `CREATE EXTENSION IF NOT EXISTS "uuid-ossp";\n`;
 
     erdTables.forEach(t => {
-      schema += `\n-- Table: ${t.name}\nCREATE TABLE ${t.id} (\n`;
+      schema += `\n-- Table: ${t.name}\nCREATE TABLE IF NOT EXISTS ${t.id} (\n`;
       const fieldLines: string[] = [];
 
       t.fields.forEach(f => {
@@ -1022,6 +1025,13 @@ generator client {
 
       schema += fieldLines.join(",\n");
       schema += `\n);\n`;
+    });
+
+    schema += `\n-- ==========================================\n`;
+    schema += `-- MIGRATION DOWN (ROLLBACK SCRIPT)\n`;
+    schema += `-- ==========================================\n`;
+    [...erdTables].reverse().forEach(t => {
+      schema += `DROP TABLE IF EXISTS ${t.id} CASCADE;\n`;
     });
 
     if (format === "graphql") {
