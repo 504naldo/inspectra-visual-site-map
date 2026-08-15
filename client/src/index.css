@@ -44,8 +44,9 @@
   --color-status-deficiency: var(--status-deficiency);
   --color-status-no-access: var(--status-no-access);
 
-  --font-sans: "JetBrains Mono", "Courier New", Courier, monospace;
-  --font-display: "Orbitron", "Plus Jakarta Sans", sans-serif;
+  --font-sans: "Inter", "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --font-display: "Plus Jakarta Sans", sans-serif;
 }
 
 :root {
